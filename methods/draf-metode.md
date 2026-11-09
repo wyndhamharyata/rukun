@@ -10,6 +10,7 @@ bertanda [isi] perlu dilengkapi sebelum dikumpulkan.
 | Pembanding native | Rune | GPUI | Rune berumur kurang dari satu bulan, belum punya rilis, dan meminta aplikasi memakai revisi dev. GPUI sudah dipakai di aplikasi produksi, yaitu editor Zed. Rune tetap dibahas sebagai related work dan rujukan developer experience. Ringkasan rencana sudah memakai GPUI. |
 | Judul | ... Perbandingan Performa dengan Tauri, Electron, dan Rune | ... Perbandingan Performa dengan Tauri, Electron, dan GPUI | Mengikuti pembanding baru. |
 | Pertanyaan penelitian 1 | ... dibandingkan Tauri, Electron, dan Rune ... | ... dibandingkan Tauri, Electron, dan GPUI ... | Sama. |
+| Aplikasi uji | Penjelajah perpustakaan musik dengan data sampel lokal | Rukun versi desktop: ruang kerja keluarga dengan ruang (space), tugas, dan catatan, dengan data sintetis | Rukun berangkat dari laporan Ideation mata kuliah Digital Entrepreneurship Product Development dan mengambil prinsip Slack, Linear, dan Obsidian, yang ketiganya aplikasi Electron. Jenis aplikasi ini lebih dikenal developer dan lebih mewakili aplikasi desktop berbasis web daripada pemutar musik. |
 | Artifact | Framework minimal, cukup untuk aplikasi uji | Framework umum bernama thor. Penelitian mengukur satu versi yang dibekukan (research tag). | Framework dikembangkan untuk aplikasi nyata. Angka penelitian hanya berlaku untuk versi yang diukur. |
 | Variabel | Disebut namanya | Didefinisikan secara operasional (bagian 5) | Agar setiap angka dapat diulang dan dibandingkan antar-framework. |
 | Tahap B | Tanpa aturan AI, batas waktu, dan definisi selesai | Tanpa AI assistant, batas 60 menit, kartu tugas dengan acceptance checks | Agar waktu penyelesaian dapat dibandingkan antar-partisipan. |
@@ -31,13 +32,13 @@ jendela.
 
 | Iterasi | Waktu | Build | Evaluate |
 | --- | --- | --- | --- |
-| 1 | Minggu 1 | Halaman Songs dengan API mentah thor v0.1 | Jumlah baris kode dan daftar kendala |
-| 2 | Minggu 2–4 | Perbaikan API (P0) dan komponen Tier 1, lalu halaman Songs dibangun ulang | Jumlah baris kode dan daftar kendala dibandingkan dengan iterasi 1 |
+| 1 | Minggu 1 | Halaman Tasks dengan API mentah thor v0.1 | Jumlah baris kode dan daftar kendala |
+| 2 | Minggu 2–4 | Perbaikan API (P0) dan komponen Tier 1, lalu halaman Tasks dibangun ulang | Jumlah baris kode dan daftar kendala dibandingkan dengan iterasi 1 |
 | Evaluasi akhir | Minggu 8–9 | Research tag | Tahap A dan tahap B |
 
-Iterasi 1 sudah berjalan. Halaman Songs pada v0.1 membutuhkan 158 baris kode, dan 11 kendala
-tercatat, misalnya belum ada virtual list, belum ada dokumentasi, dan input teks yang harus
-dihubungkan sendiri oleh aplikasi.
+Iterasi 1 sudah berjalan. Halaman Tasks pada v0.1 membutuhkan 256 baris kode, dan 15 kendala
+tercatat, misalnya belum ada dokumentasi, virtual list, komponen gambar, dan checkbox, serta
+input teks yang harus dihubungkan sendiri oleh aplikasi.
 
 ## 4. Versi yang dikunci dan perangkat
 
@@ -52,15 +53,21 @@ dihubungkan sendiri oleh aplikasi.
 
 ### Aplikasi uji
 
-Satu aplikasi yang sama dibangun dengan keempat framework, mengikuti satu spesifikasi tertulis
-tentang ukuran, warna, dan font. Aplikasi ini berisi sidebar, halaman Songs (5.000 lagu dengan
-pencarian dan virtual list), halaman Albums (grid 400 cover), halaman album, dan player bar
-dengan isi tetap.
+Aplikasi uji adalah potongan desktop dari Rukun, ruang kerja digital untuk keluarga yang
+dirancang di laporan Ideation mata kuliah Digital Entrepreneurship Product Development. Satu
+aplikasi yang sama dibangun dengan keempat framework, mengikuti satu spesifikasi tertulis
+tentang ukuran, warna, dan font. Aplikasi ini berisi sidebar dengan 12 ruang keluarga, halaman
+Tasks (5.000 tugas dengan pencarian dan virtual list), halaman ruang (timeline pesan, tugas,
+daftar, dan catatan dengan tinggi yang berbeda-beda, sebagian dengan foto dan emoji), dan
+halaman catatan (read-only, dengan checklist dan backlink). Fitur Today, kalender, suara, dan
+AI tidak dibangun, karena fitur suara dan AI membutuhkan jaringan sehingga pengukuran tidak
+dapat diulang dengan hasil yang sama.
 
-Datanya sintetis, dibuat oleh generator dengan seed tetap: 5.000 lagu, 400 album, 150 artis,
-dan 400 cover JPEG berukuran 360 × 360 piksel. Tidak ada data pribadi dan tidak ada karya
-berhak cipta. Data disertakan di dalam setiap aplikasi. Setiap aplikasi dibuka pada halaman
-Songs.
+Datanya sintetis, dibuat oleh generator dengan seed tetap: 5 anggota keluarga, 12 ruang dengan
+9.740 item timeline (4.000 di antaranya di ruang `#keluarga`), 5.000 tugas selama tiga tahun,
+200 catatan, 400 foto JPEG berukuran 480 × 360 piksel, dan 5 avatar. Tidak ada data pribadi,
+percakapan nyata, atau karya berhak cipta. Data disertakan di dalam setiap aplikasi. Setiap
+aplikasi dibuka pada halaman Tasks.
 
 ### Kondisi pengukuran
 
@@ -73,7 +80,7 @@ ditutup.
 
 | Variabel | Definisi | Alat ukur |
 | --- | --- | --- |
-| Startup time (ms) | Waktu dari harness menjalankan executable di dalam `.app` hingga baris `first-frame` diterima dari stdout aplikasi. Baris ini dicetak setelah frame pertama yang menampilkan daftar lagu. Diukur sebagai warm start. | Skrip harness |
+| Startup time (ms) | Waktu dari harness menjalankan executable di dalam `.app` hingga baris `first-frame` diterima dari stdout aplikasi. Baris ini dicetak setelah frame pertama yang menampilkan daftar tugas. Diukur sebagai warm start. | Skrip harness |
 | Frame time p50 dan p99 (ms) | Selang antara awal dua frame berurutan selama aplikasi menggulir dirinya sendiri dengan kecepatan 1.500 point per detik selama 20 detik. Waktu diambil di callback yang digerakkan layar: display link pada thor, `requestAnimationFrame` pada Electron dan Tauri, dan frame callback pada GPUI. | Log aplikasi, diolah oleh harness |
 | Memory usage (MB) | Physical footprint, dijumlahkan dari semua proses milik aplikasi: main, renderer, GPU, dan utility pada Electron, serta proses aplikasi dan layanan XPC WebKit (WebContent, Networking, GPU) pada Tauri. Dilaporkan rata-rata dan puncaknya selama skenario. | `footprint` atau `vmmap` [isi] |
 | Idle CPU usage (%) | Total CPU time semua proses milik aplikasi selama 60 detik tanpa input, dibagi 60 detik, dalam persen satu core. | `ps` atau `top` [isi] |
@@ -89,8 +96,8 @@ ditutup.
 | --- | --- | --- |
 | Setup | Setup time | Satu mesin virtual macOS bersih per framework (misalnya Tart). |
 | S1 start | Startup time | Harness menjalankan aplikasi, menunggu baris `first-frame`, lalu menutupnya. 10 run setelah 1 run yang dibuang. |
-| S2 gulir lagu | Frame time, CPU, memory | Aplikasi menggulir daftar lagu sendiri dengan kecepatan dan durasi tetap. |
-| S3 gulir album | Frame time, memory puncak | Sama, pada grid album, sehingga cover ikut di-decode. |
+| S2 gulir tugas | Frame time, CPU, memory | Aplikasi menggulir daftar tugas sendiri dengan kecepatan dan durasi tetap. Semua baris setinggi sama. |
+| S3 gulir timeline | Frame time, memory puncak | Sama, pada timeline `#keluarga`: item dengan tinggi berbeda, teks yang membungkus, emoji, dan 232 foto yang ikut di-decode. |
 | S4 idle | Idle CPU | 60 detik tanpa input, setelah S1. |
 | Build | Clean dan incremental build time | Seperti definisi di atas. |
 | Ukuran dan kode | Bundle size, lines of code | Seperti definisi di atas. |
@@ -119,10 +126,10 @@ dipublikasikan.
   dicatat, tetapi tidak disyaratkan.
 - Perangkat: satu Mac yang sama untuk setiap sesi, dengan Odin dan thor sudah terpasang.
   Setup diukur di tahap A, bukan bagian tugas.
-- Starter project: template berisi data dan sidebar. Halaman Songs masih kosong.
-- Kartu tugas: membangun daftar lagu yang dapat dicari dan digulir. Acceptance checks:
-  setiap lagu dapat dicapai dengan menggulir, pencarian menyaring berdasarkan judul dan artis,
-  dan klik memilih satu baris.
+- Starter project: aplikasi uji dengan data dan sidebar. Halaman Tasks masih kosong.
+- Kartu tugas: membangun halaman Tasks, yaitu daftar tugas yang dapat dicari dan digulir.
+  Acceptance checks: setiap tugas dapat dicapai dengan menggulir, pencarian menyaring
+  berdasarkan judul dan nama penanggung jawab, dan klik memilih satu baris.
 - Bahan: cheatsheet, halaman getting started, dan contoh kode, ditambah gallery komponen bila
   research tag memilikinya. Tidak ada AI assistant.
 - Waktu: paling lama 60 menit, dengan rekaman layar. Task completion time dihitung dari awal
@@ -151,7 +158,8 @@ dipublikasikan.
 - Tahap B tidak memakai AI assistant, sehingga waktu tugas dapat lebih lama daripada praktik
   developer pada 2026.
 - Jumlah partisipan kecil, sehingga temuan kualitatif tidak dapat digeneralisasi.
-- Hanya satu jenis aplikasi uji. Cold start tidak diukur karena membutuhkan reboot setiap run.
+- Hanya satu jenis aplikasi uji, yaitu potongan Rukun, dan Rukun sendiri dirancang sebagai aplikasi
+  mobile dan web. Cold start tidak diukur karena membutuhkan reboot setiap run.
 
 ## 8. Jadwal
 

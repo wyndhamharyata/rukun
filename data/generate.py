@@ -1,147 +1,320 @@
-# Makes the test app's library: 5,000 songs, 400 albums by 150 artists, and a cover per album.
-# Usage: python3 -I data/generate.py. The covers need ImageMagick 7 (magick).
-# The same seed gives the same library.json. The output is committed, so the apps never run this.
+# Makes the test app's data: one family's Rukun workspace over three years. 5 members, 12 spaces,
+# 5,000 tasks, 200 notes, about 10,000 timeline items, 400 photos and an avatar per member.
+# Usage: python3 -I data/generate.py. The images need ImageMagick 7 (magick).
+# The same seed gives the same rukun.json. The output is committed, so the apps never run this.
 import colorsys
 import json
 import random
 import shutil
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timedelta
 from pathlib import Path
 
 SEED = 2026
-SONG_COUNT = 5000
-ALBUM_COUNT = 400
-ARTIST_COUNT = 150
-# The spec draws a cover at 180 points at most, on a 2x screen.
-COVER_PIXELS = 360
-MIN_SONGS_PER_ALBUM = 4
-MAX_SONGS_PER_ALBUM = 24
+TASK_COUNT = 5000
+NOTE_COUNT = 200
+PHOTO_COUNT = 400
+LONG_SPACE = 'keluarga'
+LONG_SPACE_ITEMS = 4000
+OTHER_SPACE_ITEMS = (300, 800)
+START = datetime(2024, 1, 1)
+TODAY = datetime(2026, 11, 9)
+LAST_DUE = datetime(2027, 1, 31)
+# The spec draws a photo at 240 by 180 points and an avatar at 28, on a 2x screen.
+PHOTO_PIXELS = (480, 360)
+AVATAR_PIXELS = 56
 
 HERE = Path(__file__).resolve().parent
 
-FIRST_NAMES = """Ada Ayla Bram Cato Dara Elio Esme Faye Gale Hana Ilse Ines Jono Kaia Lark Lev Lina
-Mara Milo Nell Noor Oren Pia Quin Rhea Rio Sana Tove Ula Vito Wren Yara Zane Ines Arlo Beto Cleo
-Dov Edda Fenn Gita Hugo Iris Juno Kit Lior Maya Nico Odil Pax Rumi Sol Tali Uri Vera Wim Zoë""".split()
+MEMBERS = [('m1', 'Nadia'), ('m2', 'Raka'), ('m3', 'Kayla'), ('m4', 'Bima'), ('m5', 'Oma Rini')]
+KIDS = ['Kayla', 'Bima']
+ADULTS = ['Nadia', 'Raka']
+EVERYONE = [name for _, name in MEMBERS]
 
-LAST_NAMES = """Abel Brandt Castell Dorne Ellery Fainn Garro Holm Iverly Jansky Kade Lindqvist Moreau
-Nadal Okafor Pereira Quill Rask Sato Thorne Ueda Valen Weller Yoon Zeller Arden Bello Corvin
-Dahl Eastly Finch Grey Hale Ito Kerr Lowe Marsh Novak Ortiz Pike Reyes Sauer Tamm Varga Wolfe
-Åberg Müller Núñez Søndergaard""".split()
+# Each space, who takes its tasks, and its task titles.
+SPACES = {
+    'sekolah': (ADULTS, [
+        'Bayar SPP {kid}', 'Jemput {kid} di sekolah', 'Jemput {kid} dari les {les}', 'Cek PR {subject} {kid}',
+        'Siapkan bekal {kid}', 'Beli {school_item} untuk {kid}', 'Daftarkan {kid} ke ekskul {extra}',
+        'Datang ke rapat orang tua murid', 'Tanda tangan rapor {kid}', 'Antar {kid} ke {school_event}',
+    ]),
+    'rumah': (EVERYONE, [
+        'Bayar PLN', 'Bayar PDAM', 'Bayar iuran RT', 'Ganti paket internet', 'Servis AC {room}', 'Bersihkan {room}',
+        'Ganti lampu {room}', 'Panggil tukang untuk {repair}', 'Buang sampah', 'Cuci {laundry}', 'Beli galon',
+        'Beli gas elpiji', 'Rapikan {room}',
+    ]),
+    'keuangan': (ADULTS, [
+        'Bayar cicilan rumah', 'Bayar kartu kredit', 'Bayar asuransi {insurance}', 'Bayar BPJS keluarga',
+        'Transfer uang jajan {kid}', 'Catat pengeluaran {month}', 'Lapor SPT tahunan', 'Perpanjang deposito',
+        'Kirim uang bulanan untuk Oma',
+    ]),
+    'liburan': (ADULTS, [
+        'Pesan tiket ke {dest}', 'Cari hotel di {dest}', 'Perpanjang paspor {person}', 'Siapkan koper ke {dest}',
+        'Tukar uang untuk ke {dest}', 'Titipkan Mochi selama ke {dest}',
+    ]),
+    'kesehatan': (ADULTS + ['Oma Rini'], [
+        'Kontrol gigi {person}', 'Vaksin {vaccine} untuk {kid}', 'Tebus resep obat Oma', 'Medical check-up {adult}',
+        'Beli vitamin untuk {person}', 'Jadwalkan fisioterapi Oma',
+    ]),
+    'belanja': (ADULTS + ['Oma Rini'], [
+        'Beli {grocery}', 'Belanja mingguan di {store}', 'Beli kado ulang tahun {person}', 'Pesan {grocery} online',
+    ]),
+    'mobil': (['Raka'], [
+        'Servis rutin mobil', 'Ganti oli mobil', 'Bayar pajak mobil', 'Cuci mobil', 'Perpanjang SIM {adult}',
+        'Isi angin ban', 'Ganti aki mobil',
+    ]),
+    'keluarga': (EVERYONE, [
+        'Telepon Oma', 'Atur jadwal kumpul keluarga', 'Foto keluarga di {place}', 'Kirim kue ke rumah {relative}',
+        'Ajak anak-anak ke {place}',
+    ]),
+    'resep': (['Nadia', 'Oma Rini'], [
+        'Coba resep {dish}', 'Beli bahan {dish}', 'Masak {dish} untuk {event}',
+    ]),
+    'acara': (ADULTS + ['Kayla'], [
+        'Siapkan ulang tahun {person}', 'Pesan kue untuk {event}', 'Kirim undangan {event}', 'Sewa tenda untuk {event}',
+        'Konfirmasi tamu {event}',
+    ]),
+    'kucing': (KIDS + ['Nadia'], [
+        'Beli pakan Mochi', 'Vaksin Mochi', 'Bersihkan pasir Mochi', 'Mandikan Mochi', 'Bawa Mochi ke dokter hewan',
+    ]),
+    'kebun': (['Oma Rini', 'Bima', 'Raka'], [
+        'Siram tanaman cabai', 'Pangkas pohon mangga', 'Beli pupuk', 'Tanam bibit {plant}', 'Bersihkan kolam ikan',
+    ]),
+}
 
-ADJECTIVES = """quiet silver golden hollow bright paper velvet distant electric slow broken wild
-faded open northern southern crimson blue amber pale hidden gentle restless lonely endless
-early late burning frozen secret little heavy weightless violet green neon tender honest
-borrowed sudden brief last first lucky crooked painted wooden glass marble wandering sleepless
-careless""".split()
+WORDS = {
+    'kid': KIDS,
+    'adult': ADULTS,
+    'person': EVERYONE,
+    'les': ['piano', 'renang', 'matematika', 'bahasa Inggris', 'gambar'],
+    'subject': ['matematika', 'IPA', 'bahasa Indonesia', 'bahasa Inggris', 'IPS'],
+    'school_item': ['seragam baru', 'buku gambar', 'sepatu sekolah', 'tas baru', 'alat tulis', 'buku paket'],
+    'extra': ['futsal', 'pramuka', 'paduan suara', 'robotik', 'menari'],
+    'school_event': ['karyawisata', 'lomba tujuh belasan', 'pentas seni', 'class meeting', 'manasik haji'],
+    'room': ['kamar tidur', 'ruang tamu', 'dapur', 'kamar mandi', 'teras', 'kamar Kayla', 'kamar Bima', 'gudang'],
+    'repair': ['atap bocor', 'keran rusak', 'pintu macet', 'saluran air', 'pagar berkarat'],
+    'laundry': ['sprei', 'gorden', 'karpet', 'seragam', 'selimut'],
+    'insurance': ['kesehatan', 'mobil', 'rumah', 'jiwa'],
+    'month': ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'],
+    'dest': ['Bali', 'Yogyakarta', 'Malang', 'Lombok', 'Bandung', 'Labuan Bajo', 'Singapura', 'Tokyo', 'Belitung'],
+    'vaccine': ['influenza', 'tifoid', 'HPV', 'DBD', 'hepatitis A'],
+    'grocery': ['beras', 'telur', 'minyak goreng', 'susu', 'sabun cuci', 'gula', 'kopi', 'buah', 'sayur', 'roti', 'deterjen', 'tisu'],
+    'store': ['pasar', 'supermarket', 'toko sayur', 'minimarket'],
+    'place': ['Kebun Raya', 'pantai', 'kebun binatang', 'taman kota', 'museum', 'puncak'],
+    'relative': ['Tante Dewi', 'Om Hendra', 'Pakde Joko', 'Bude Sari', 'sepupu di Bekasi'],
+    'dish': ['rendang', 'soto ayam', 'opor', 'nasi goreng kampung', 'sayur asem', 'bakwan jagung', 'klepon', 'sop buntut', 'ayam bakar', 'pepes ikan'],
+    'event': ['arisan', 'Lebaran', 'ulang tahun Bima', 'ulang tahun Kayla', 'syukuran rumah', 'Natal kantor', 'reuni SMA'],
+    'plant': ['tomat', 'cabai', 'kangkung', 'jeruk nipis', 'mawar', 'lidah buaya'],
+    'day': ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'],
+    'hour': ['11', '12', '13', '14', '15', '16', '17'],
+}
 
-NOUNS = """harbor lantern river window garden signal echo meadow highway station mirror ocean
-orchard compass winter summer evening morning letter promise shadow island lighthouse planet
-satellite city valley canyon desert forest thunder rain ember feather anchor ribbon circle
-horizon tide season stranger fever heartbeat skyline postcard balcony staircase carousel
-telephone radio paper engine moon sun star cloud field avenue bridge tower kingdom
-mountain""".split()
+TASK_SUFFIXES = [
+    ' sebelum tanggal {date}', ' dan kirim buktinya ke grup', ' bareng {person} sepulang kerja',
+    ' untuk persiapan {event} bulan depan', ' kalau sempat akhir pekan ini',
+]
 
-PLURALS = """lanterns rivers windows gardens signals echoes mirrors oceans letters promises
-shadows islands planets satellites cities valleys feathers anchors ribbons circles horizons
-seasons strangers heartbeats skylines postcards engines stars clouds fields bridges towers
-mountains""".split()
+SENTENCES = [
+    'Siap.', 'Oke, nanti aku kabari.', 'Makasih ya!', 'Sudah beres.', 'Aku pulang agak telat hari ini.',
+    'Ada yang lihat kunci mobil?', 'Nanti malam makan di luar?', 'Jangan lupa bawa payung, katanya mau hujan.',
+    'Aku sudah di jalan.', 'Tolong dicek lagi ya.', 'Nanti kita bahas pas makan malam.',
+    'Boleh, asal PR-nya selesai dulu.', 'Wah, keren!', 'Aku setuju.', 'Besok saja ya, hari ini penuh.',
+    'Sudah aku transfer.', 'Struknya aku simpan di laci dapur.', 'Siapa yang pakai charger terakhir?',
+    '{kid} pulang jam {hour}.00.', 'Oma datang hari {day}.', '{person}, password wifi apa?',
+    'Besok {kid} ada {school_event}.', 'Harga {grocery} naik lagi.', 'Kita berangkat ke {dest} tanggal {date}?',
+    'Mochi muntah lagi, perlu ke dokter?', 'Aku masak {dish} malam ini.', 'Jangan lupa telepon {relative}.',
+    'Tadi {kid} dapat nilai bagus di pelajaran {subject}.', 'Hari {day} aku ada rapat sampai sore, ada yang bisa jemput?',
+    'Tolong matikan lampu {room} kalau sudah selesai.',
+]
 
-VERBS = """running falling dancing waiting drifting chasing calling holding leaving dreaming
-burning sinking climbing turning breaking singing""".split()
+EMOJI = ['👍', '🙏', '😂', '❤️', '🎉', '😅', '🙌', '✅', '🚗', '🍜', '😴', '🐱']
 
-PREPOSITIONS = "under over through beyond across behind after before into from".split()
+PHOTO_SPACES = {'keluarga', 'liburan', 'acara', 'kucing', 'kebun', 'resep'}
 
-PLACES = """Osaka Lisbon Reykjavik Montreal Nairobi Seoul Valparaíso Tallinn Bergen Kyoto
-Marseille Hobart""".split()
+LISTS = [
+    ('Belanja mingguan', 'grocery'), ('Bahan {dish}', 'ingredient'), ('Barang bawaan ke {dest}', 'packing'),
+    ('Perlengkapan sekolah {kid}', 'school_item'), ('Persiapan {event}', 'party'),
+]
 
-JAPANESE = """夜明け 青い空 星の海 白い花 遠い街 雨の音 夏の終わり 光の中 風の歌 月の夜 小さな手紙 君の声
-春の日 窓辺 夢の続き 静かな朝 さよならの前に 帰り道 ひかり あおぞら はなび ゆめ""".split()
+ENTRIES = {
+    'grocery': WORDS['grocery'],
+    'ingredient': ['bawang merah', 'bawang putih', 'cabai', 'santan', 'serai', 'daun salam', 'lengkuas', 'kemiri', 'jahe', 'kunyit'],
+    'packing': ['paspor', 'charger', 'baju renang', 'obat-obatan', 'topi', 'sunscreen', 'kamera', 'sandal'],
+    'school_item': WORDS['school_item'] + ['penggaris', 'pensil warna', 'botol minum'],
+    'party': ['balon', 'kue', 'piring kertas', 'hadiah', 'lilin', 'minuman', 'undangan', 'dekorasi'],
+}
 
+NOTE_TITLES = {
+    'rumah': ['Wi-Fi rumah', 'Nomor darurat', 'Tukang langganan', 'Jadwal sampah {year}', 'Cara reset router'],
+    'sekolah': ['Kontak wali kelas {kid} {year}', 'Jadwal les {kid} {year}', 'Kalender sekolah {year}', 'Akun aplikasi sekolah {kid}'],
+    'keuangan': ['Anggaran {month} {year}', 'Daftar tagihan bulanan', 'Rencana tabungan {year}'],
+    'liburan': ['Rencana liburan {dest} {year}', 'Itinerary {dest}', 'Dokumen perjalanan'],
+    'kesehatan': ['Daftar obat Oma', 'Dokter langganan', 'Riwayat vaksin {kid}', 'Golongan darah keluarga'],
+    'belanja': ['Toko langganan', 'Ukuran baju anak {year}', 'Ide kado {person}'],
+    'mobil': ['Catatan servis mobil {year}', 'Bengkel langganan', 'Asuransi mobil {year}'],
+    'keluarga': ['Silsilah keluarga', 'Tanggal ulang tahun keluarga', 'Aturan screen time', 'Pembagian tugas rumah {year}'],
+    'resep': ['Resep {dish}', 'Resep {dish} ala Oma'],
+    'acara': ['Daftar tamu {event} {year}', 'Rundown {event} {year}'],
+    'kucing': ['Jadwal vaksin Mochi', 'Makanan Mochi', 'Dokter hewan langganan'],
+    'kebun': ['Tanaman di kebun', 'Jadwal pupuk {year}', 'Cara merawat {plant}'],
+}
 
-def title_case(words):
-    return ' '.join(word[:1].upper() + word[1:] for word in words)
-
-
-def make_artist(rng):
-    kind = rng.random()
-    if kind < 0.55:
-        return f'{rng.choice(FIRST_NAMES)} {rng.choice(LAST_NAMES)}'
-    if kind < 0.8:
-        return 'The ' + title_case([rng.choice(ADJECTIVES), rng.choice(PLURALS)])
-    if kind < 0.92:
-        return title_case([rng.choice(ADJECTIVES), rng.choice(NOUNS)])
-    return rng.choice(JAPANESE[:12]) + rng.choice(['バンド', 'クラブ', 'の人たち', ''])
-
-
-def make_title(rng, is_album):
-    kind = rng.random()
-    if kind < 0.05:
-        return rng.choice(JAPANESE) + ('' if rng.random() < 0.6 else ' ' + rng.choice(JAPANESE))
-    if kind < 0.1:
-        return title_case([rng.choice(NOUNS)])
-    if kind < 0.55:
-        return title_case([rng.choice(ADJECTIVES), rng.choice(NOUNS)])
-    if kind < 0.7:
-        return title_case([rng.choice(VERBS), rng.choice(PREPOSITIONS), 'the', rng.choice(NOUNS)])
-    if kind < 0.82:
-        return title_case(['the', rng.choice(NOUNS), 'of', rng.choice(ADJECTIVES), rng.choice(PLURALS)])
-    if kind < 0.9 or is_album:
-        return title_case([rng.choice(ADJECTIVES), rng.choice(PLURALS)])
-    # About 10% of songs have long titles, so the Title column truncates some rows.
-    base = title_case([
-        rng.choice(ADJECTIVES), rng.choice(NOUNS), rng.choice(PREPOSITIONS), 'the',
-        rng.choice(ADJECTIVES), rng.choice(PLURALS),
-    ])
-    return f'{base} (Live in {rng.choice(PLACES)})' if rng.random() < 0.5 else base
-
-
-def sort_key(text):
-    return (text.casefold(), text)
+NOTE_SENTENCES = [
+    'Simpan catatan ini supaya semua orang tahu.', 'Kalau ada perubahan, tulis di sini ya.',
+    'Terakhir diperbarui oleh {person}.', 'Detailnya ada di grup, ini ringkasannya.',
+    'Jangan dibagikan ke luar keluarga.', 'Tanyakan ke {person} kalau ada yang kurang jelas.',
+    'Biasanya buka dari jam 8 pagi sampai jam 5 sore.', 'Bayar paling lambat tanggal 10 setiap bulan.',
+    'Untuk {kid}, sesuaikan dengan jadwal sekolah.', 'Tahun lalu kita lupa, jadi tahun ini dicatat lebih awal.',
+    'Bawa kartu identitas dan fotokopinya.', 'Konfirmasi lewat telepon sehari sebelumnya.',
+    'Kalau hujan, rencananya pindah ke hari {day}.', 'Bahan-bahannya bisa dibeli di {store}.',
+    'Takarannya untuk enam porsi.', 'Oma lebih suka yang tidak terlalu pedas.',
+]
 
 
-def make_library(rng):
-    artists = set()
-    while len(artists) < ARTIST_COUNT:
-        artists.add(make_artist(rng))
-    artists = sorted(artists, key=sort_key)
+def fill(rng, template, extra=None):
+    words = dict(extra or {})
+    while '{' in template:
+        start = template.index('{')
+        end = template.index('}', start)
+        key = template[start + 1:end]
+        if key == 'date':
+            value = f'{rng.randint(1, 28)} {rng.choice(WORDS["month"])}'
+        elif key == 'year':
+            value = str(rng.randint(2024, 2026))
+        else:
+            value = words[key] if key in words else rng.choice(WORDS[key])
+        template = template[:start] + value + template[end + 1:]
+    return template
 
-    # Every artist has an album. The rest go to a few prolific artists more often.
-    owners = list(artists) + rng.choices(artists, weights=[1 / (i + 1) ** 0.5 for i in range(ARTIST_COUNT)], k=ALBUM_COUNT - ARTIST_COUNT)
-    albums = [{'title': make_title(rng, True), 'artist': artist, 'year': rng.randint(1978, 2026)} for artist in owners]
-    albums.sort(key=lambda album: (sort_key(album['title']), sort_key(album['artist'])))
-    for index, album in enumerate(albums):
-        album['id'] = f'a{index + 1:04d}'
-        album['cover'] = f'{album["id"]}.jpg'
 
-    counts = [rng.randint(6, 18) for _ in albums]
-    while sum(counts) != SONG_COUNT:
-        index = rng.randrange(len(counts))
-        step = 1 if sum(counts) < SONG_COUNT else -1
-        if MIN_SONGS_PER_ALBUM <= counts[index] + step <= MAX_SONGS_PER_ALBUM:
-            counts[index] += step
+def lower_first(text):
+    return text[:1].lower() + text[1:] if text[1:2].islower() or text[1:2] == ' ' else text
 
-    songs = []
-    for album, count in zip(albums, counts):
-        for track in range(1, count + 1):
-            seconds = int(min(540, max(95, rng.gauss(225, 50))))
-            songs.append({
-                'title': make_title(rng, False),
-                'artist': album['artist'],
-                'album': album['title'],
-                'album_id': album['id'],
-                'track': track,
-                'seconds': seconds,
-            })
-    songs.sort(key=lambda song: (sort_key(song['title']), sort_key(song['artist']), song['album_id'], song['track']))
-    for index, song in enumerate(songs):
-        song['id'] = f's{index + 1:05d}'
 
-    field_order = {'albums': ['id', 'title', 'artist', 'year', 'cover'], 'songs': ['id', 'title', 'artist', 'album', 'album_id', 'track', 'seconds']}
-    return {
-        name: [{key: item[key] for key in field_order[name]} for item in items]
-        for name, items in (('albums', albums), ('songs', songs))
+def random_time(rng, start, end):
+    return start + timedelta(seconds=rng.randrange(int((end - start).total_seconds())))
+
+
+def make_tasks(rng, member_ids):
+    space_names = list(SPACES)
+    weights = [3, 4, 2, 1, 2, 3, 1, 2, 1, 1, 2, 1]
+    tasks = []
+    for _ in range(TASK_COUNT):
+        space = rng.choices(space_names, weights)[0]
+        people, templates = SPACES[space]
+        title = fill(rng, rng.choice(templates))
+        # About 10% of titles are long enough to end in an ellipsis.
+        if rng.random() < 0.1:
+            title += fill(rng, rng.choice(TASK_SUFFIXES))
+        due = random_time(rng, START, LAST_DUE)
+        is_done = due < TODAY and rng.random() < 0.96
+        tasks.append({
+            'title': title, 'space': space, 'assignee': member_ids[rng.choice(people)],
+            'done': is_done, 'due': due.strftime('%Y-%m-%d'),
+        })
+    tasks.sort(key=lambda task: task['due'], reverse=True)
+    for index, task in enumerate(tasks):
+        task['id'] = f't{index + 1:05d}'
+    return tasks
+
+
+def make_notes(rng, tasks_by_space):
+    notes = []
+    titles = set()
+    while len(notes) < NOTE_COUNT:
+        space = rng.choice(list(NOTE_TITLES))
+        title = fill(rng, rng.choice(NOTE_TITLES[space]))
+        if title in titles:
+            continue
+        titles.add(title)
+        body = [
+            ' '.join(fill(rng, sentence) for sentence in rng.sample(NOTE_SENTENCES, rng.randint(1, 4)))
+            for _ in range(rng.randint(1, 4))
+        ]
+        checklist = [
+            {'text': entry, 'done': rng.random() < 0.5}
+            for entry in rng.sample(ENTRIES[rng.choice(list(ENTRIES))], rng.randint(0, 5))
+        ]
+        related = [task['id'] for task in rng.sample(tasks_by_space[space], min(len(tasks_by_space[space]), rng.randint(0, 3)))]
+        notes.append({'title': title, 'space': space, 'body': body, 'checklist': checklist, 'tasks': related})
+    notes.sort(key=lambda note: note['title'].casefold())
+    for index, note in enumerate(notes):
+        note['id'] = f'n{index + 1:03d}'
+    for note in notes:
+        note['links'] = sorted({other['id'] for other in rng.sample(notes, rng.randint(0, 3)) if other is not note})
+    return notes
+
+
+def make_items(rng, space, count, member_ids, tasks, notes, photo_numbers):
+    # People write between 6.00 and 22.59.
+    days = sorted(random_time(rng, START, TODAY) for _ in range(count))
+    times = sorted(day.replace(hour=rng.randint(6, 22)) for day in days)
+    items = []
+    for time in times:
+        author = rng.choice(list(member_ids.values()))
+        kind = rng.choices(['message', 'task', 'list', 'note'], [80, 10, 5, 5])[0]
+        item = {'author': author, 'time': time.strftime('%Y-%m-%dT%H:%M'), 'kind': kind}
+        if kind == 'message' or (kind == 'task' and not tasks) or (kind == 'note' and not notes):
+            item['kind'] = 'message'
+            count = rng.choices([1, 2, 3, 4], [50, 30, 15, 5])[0]
+            text = ' '.join(fill(rng, sentence) for sentence in rng.sample(SENTENCES, count))
+            if rng.random() < 0.15:
+                text += ' ' + rng.choice(EMOJI)
+            item['text'] = text
+            if space in PHOTO_SPACES and photo_numbers and rng.random() < 0.08:
+                item['photo'] = f'p{photo_numbers.pop():04d}.jpg'
+        elif kind == 'task':
+            item['task'] = rng.choice(tasks)['id']
+        elif kind == 'note':
+            item['note'] = rng.choice(notes)['id']
+        else:
+            title, entry_kind = rng.choice(LISTS)
+            item['title'] = fill(rng, title)
+            item['entries'] = [
+                {'text': entry, 'done': rng.random() < 0.4}
+                for entry in rng.sample(ENTRIES[entry_kind], rng.randint(3, min(8, len(ENTRIES[entry_kind]))))
+            ]
+        items.append(item)
+    return items
+
+
+def make_workspace(rng):
+    member_ids = {name: member_id for member_id, name in MEMBERS}
+    tasks = make_tasks(rng, member_ids)
+    tasks_by_space = {space: [task for task in tasks if task['space'] == space] for space in SPACES}
+    notes = make_notes(rng, tasks_by_space)
+    notes_by_space = {space: [note for note in notes if note['space'] == space] for space in SPACES}
+
+    # The long space gets the photos first, so scrolling it decodes most of them.
+    photo_numbers = list(range(PHOTO_COUNT, 0, -1))
+    spaces = []
+    for space in [LONG_SPACE] + sorted(set(SPACES) - {LONG_SPACE}):
+        count = LONG_SPACE_ITEMS if space == LONG_SPACE else rng.randint(*OTHER_SPACE_ITEMS)
+        items = make_items(rng, space, count, member_ids, tasks_by_space[space], notes_by_space[space], photo_numbers)
+        spaces.append({'id': space, 'name': space, 'items': items})
+    spaces.sort(key=lambda space: space['name'])
+
+    item_number = 0
+    for space in spaces:
+        for item in space['items']:
+            item_number += 1
+            item['id'] = f'i{item_number:05d}'
+
+    for note in notes:
+        note['in_spaces'] = sorted({space['id'] for space in spaces for item in space['items'] if item.get('note') == note['id']})
+        note['in_notes'] = [other['id'] for other in notes if note['id'] in other['links']]
+
+    members = [{'id': member_id, 'name': name, 'avatar': f'{member_id}.jpg'} for member_id, name in MEMBERS]
+    order = {
+        'tasks': ['id', 'title', 'space', 'assignee', 'done', 'due'],
+        'notes': ['id', 'title', 'space', 'body', 'checklist', 'tasks', 'links', 'in_spaces', 'in_notes'],
     }
+    tasks = [{key: task[key] for key in order['tasks']} for task in tasks]
+    notes = [{key: note[key] for key in order['notes']} for note in notes]
+    for space in spaces:
+        space['items'] = [{'id': item.pop('id'), **item} for item in space['items']]
+    return {'members': members, 'spaces': spaces, 'tasks': tasks, 'notes': notes}
 
 
 def to_hex(hue, saturation, lightness):
@@ -149,60 +322,71 @@ def to_hex(hue, saturation, lightness):
     return '#%02x%02x%02x' % (round(red * 255), round(green * 255), round(blue * 255))
 
 
-def cover_command(rng, path):
+def image_command(rng, path, width, height, shape_count):
     hue = rng.random()
     start = to_hex(hue, rng.uniform(0.45, 0.85), rng.uniform(0.25, 0.55))
     end = to_hex(hue + rng.uniform(0.08, 0.35), rng.uniform(0.45, 0.85), rng.uniform(0.15, 0.6))
     mark = to_hex(hue + 0.5, rng.uniform(0.3, 0.9), rng.uniform(0.6, 0.9))
-    size = COVER_PIXELS
-    command = [
-        'magick', '-size', f'{size}x{size}', '-define', f'gradient:angle={rng.randrange(0, 360, 15)}',
-        f'gradient:{start}-{end}',
-    ]
-    for _ in range(rng.randint(1, 3)):
-        x, y = rng.randrange(size), rng.randrange(size)
-        radius = rng.randrange(size // 10, size // 2)
+    command = ['magick', '-size', f'{width}x{height}', '-define', f'gradient:angle={rng.randrange(0, 360, 15)}', f'gradient:{start}-{end}']
+    for _ in range(shape_count):
+        x, y = rng.randrange(width), rng.randrange(height)
+        radius = rng.randrange(min(width, height) // 10, min(width, height) // 2)
         opacity = rng.uniform(0.25, 0.8)
         if rng.random() < 0.5:
             command += ['-fill', mark, '-stroke', 'none', '-draw', f'fill-opacity {opacity:.2f} circle {x},{y} {x + radius},{y}']
         else:
-            width = rng.randrange(4, 24)
-            command += ['-fill', 'none', '-stroke', mark, '-strokewidth', str(width), '-draw', f'stroke-opacity {opacity:.2f} circle {x},{y} {x + radius},{y}']
-    command += ['-strip', '-quality', '85', str(path)]
-    return command
+            stroke = rng.randrange(4, 24)
+            command += ['-fill', 'none', '-stroke', mark, '-strokewidth', str(stroke), '-draw', f'stroke-opacity {opacity:.2f} circle {x},{y} {x + radius},{y}']
+    return command + ['-strip', '-quality', '85', str(path)]
+
+
+def write_json(path, workspace):
+    def lines(name, items):
+        return f' "{name}": [\n' + ',\n'.join('  ' + json.dumps(item, ensure_ascii=False) for item in items) + '\n ]'
+
+    spaces = ',\n'.join(
+        '  {"id": %s, "name": %s, "items": [\n' % (json.dumps(space['id']), json.dumps(space['name']))
+        + ',\n'.join('   ' + json.dumps(item, ensure_ascii=False) for item in space['items']) + '\n  ]}'
+        for space in workspace['spaces']
+    )
+    text = '{\n' + ',\n'.join([
+        lines('members', workspace['members']), f' "spaces": [\n{spaces}\n ]',
+        lines('tasks', workspace['tasks']), lines('notes', workspace['notes']),
+    ]) + '\n}\n'
+    path.write_text(text, encoding='utf-8')
 
 
 def main():
     rng = random.Random(SEED)
-    library = make_library(rng)
+    workspace = make_workspace(rng)
+    write_json(HERE / 'rukun.json', workspace)
 
-    lines = ['{']
-    for name in ('albums', 'songs'):
-        items = ',\n'.join('  ' + json.dumps(item, ensure_ascii=False) for item in library[name])
-        lines.append(f' "{name}": [\n{items}\n ]' + (',' if name == 'albums' else ''))
-    lines.append('}')
-    (HERE / 'library.json').write_text('\n'.join(lines) + '\n', encoding='utf-8')
-
-    covers = HERE / 'covers'
-    shutil.rmtree(covers, ignore_errors=True)
-    covers.mkdir()
+    commands = []
+    for folder in ('photos', 'avatars'):
+        shutil.rmtree(HERE / folder, ignore_errors=True)
+        (HERE / folder).mkdir()
     # The commands come from one seeded generator in a fixed order, then run in parallel.
-    commands = [cover_command(rng, covers / album['cover']) for album in library['albums']]
+    for number in range(1, PHOTO_COUNT + 1):
+        commands.append(image_command(rng, HERE / 'photos' / f'p{number:04d}.jpg', *PHOTO_PIXELS, rng.randint(1, 3)))
+    for member in workspace['members']:
+        commands.append(image_command(rng, HERE / 'avatars' / member['avatar'], AVATAR_PIXELS, AVATAR_PIXELS, 1))
     with ThreadPoolExecutor() as pool:
-        for result in pool.map(lambda command: subprocess.run(command, check=True), commands):
-            pass
+        list(pool.map(lambda command: subprocess.run(command, check=True), commands))
 
-    songs, albums = library['songs'], library['albums']
-    assert len(songs) == SONG_COUNT and len(albums) == ALBUM_COUNT
-    assert len({album['artist'] for album in albums}) == ARTIST_COUNT
-    assert len({song['id'] for song in songs}) == SONG_COUNT
-    per_album = {album['id']: 0 for album in albums}
-    for song in songs:
-        per_album[song['album_id']] += 1
-    assert all(MIN_SONGS_PER_ALBUM <= count <= MAX_SONGS_PER_ALBUM for count in per_album.values())
-    assert all((covers / album['cover']).stat().st_size > 0 for album in albums)
+    spaces, tasks, notes = workspace['spaces'], workspace['tasks'], workspace['notes']
+    items = [item for space in spaces for item in space['items']]
+    assert len(tasks) == TASK_COUNT and len({task['id'] for task in tasks}) == TASK_COUNT
+    assert len(notes) == NOTE_COUNT and len(spaces) == len(SPACES)
+    assert len({item['id'] for item in items}) == len(items)
+    task_ids, note_ids = {task['id'] for task in tasks}, {note['id'] for note in notes}
+    assert all(item['task'] in task_ids for item in items if item['kind'] == 'task')
+    assert all(item['note'] in note_ids for item in items if item['kind'] == 'note')
+    photos = [item['photo'] for item in items if 'photo' in item]
+    assert len(photos) == len(set(photos)) and all((HERE / 'photos' / photo).exists() for photo in photos)
 
-    print(f"{len(library['songs'])} songs, {len(library['albums'])} albums, {len({a['artist'] for a in library['albums']})} artists, {len(commands)} covers")
+    long_space = next(space for space in spaces if space['id'] == LONG_SPACE)
+    print(f'{len(tasks)} tasks, {len(notes)} notes, {len(items)} items in {len(spaces)} spaces '
+          f'({len(long_space["items"])} in #{LONG_SPACE}), {len(photos)} photos in messages')
 
 
 if __name__ == '__main__':
