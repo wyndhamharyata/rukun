@@ -43,8 +43,6 @@ WINDOW_COLOR :: 0x121214ff
 
 SIDEBAR_COLOR :: 0x161618ff
 
-DATA_FOLDER :: #directory + "/../../data"
-
 rukun: struct {
 	members: []Member,
 	spaces:  []Space,

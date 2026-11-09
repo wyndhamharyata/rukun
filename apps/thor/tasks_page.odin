@@ -3,6 +3,7 @@ package main
 import "core:fmt"
 import "core:strconv"
 import "core:strings"
+import "thor/app"
 import "thor/font"
 import "thor/image"
 import "thor/kit"
@@ -237,7 +238,7 @@ avatar :: proc(member: Member, size: f32) {
 		},
 	)
 	paint := new(Avatar_Paint, context.temp_allocator)
-	paint^ = {fmt.tprintf("%s/avatars/%s", DATA_FOLDER, member.avatar), int(ui.to_pixels(size))}
+	paint^ = {app.resource_path(fmt.tprintf("avatars/%s", member.avatar)), int(ui.to_pixels(size))}
 	box.data = paint
 	box.draw = draw_avatar
 }
