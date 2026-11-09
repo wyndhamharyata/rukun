@@ -51,7 +51,10 @@ belum ada dan container yang dapat diklik.
 | --- | --- |
 | Odin | `dev-2026-10` (commit `84bc3fc21`), dikunci dari minggu 1 hingga tahap B selesai |
 | thor | Research tag, dibuat setelah pilot pada minggu 7. Tidak ada perubahan, termasuk dokumentasi, hingga sesi tahap B terakhir. |
-| Electron, Tauri, GPUI | Dikunci saat aplikasi masing-masing mulai dibangun: [isi versi Electron], [isi versi Tauri], [isi revisi GPUI] |
+| Frontend bersama Electron dan Tauri | React 19.3.1, Vite 8.3.7, TanStack Virtual 3.14.26, TypeScript 7.0.2, Node.js 24.18.0 |
+| Electron | Electron 45.2.3, Electron Forge 8.0.1 |
+| Tauri | Tauri 2.12.5 (CLI 2.12.4, wry 0.57.1), Rust 1.99.1 |
+| GPUI | Dikunci saat aplikasinya mulai dibangun: [isi revisi GPUI dan GPUI Kit] |
 | Perangkat | MacBook Pro 14 inci (Mac16,1), Apple M4, RAM 16 GB, macOS 27.2 |
 
 ## 5. Tahap A: computational experiment

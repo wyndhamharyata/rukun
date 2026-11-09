@@ -13,5 +13,13 @@ Digital Entrepreneurship Product Development: spaces, tasks and notes.
   the photos and avatars. Build with `odin build .` in that folder and run `./thor.bin`, or make
   `build/Rukun.app` with `./thor/bundle.sh Rukun`. `TESTAPP_PAGE=keluarga` opens a space.
   `odin test .` there tests adding a task and sending a message.
+- `apps/web/`: the React app that Electron and Tauri share, from Vite's React template. `npm run
+  build` there makes `dist/`, which both shells load. `npm run dev` serves it on port 1420.
+- `apps/electron/`: the Electron shell, from Electron Forge's base template. `npx electron-forge
+  package` makes `out/Rukun-darwin-arm64/Rukun.app`. `RUKUN_DEV_URL=http://localhost:1420 npm
+  start` loads the dev server instead of `dist/`.
+- `apps/tauri/`: the Tauri shell, from create-tauri-app's React template with its frontend taken
+  out. `npx tauri build --bundles app` builds the web app and makes
+  `src-tauri/target/release/bundle/macos/Rukun.app`. `npx tauri dev` uses the dev server.
 - `notes/`: one file per DSR iteration.
 - `methods/`: drafts for the next AFL document, in Indonesian.
