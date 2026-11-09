@@ -64,7 +64,9 @@ aplikasi yang sama dibangun dengan keempat framework, mengikuti satu spesifikasi
 tentang ukuran, warna, dan font. Aplikasi ini berisi sidebar dengan 12 ruang keluarga, halaman
 Tasks (5.000 tugas dengan pencarian dan virtual list), halaman ruang (timeline pesan, tugas,
 daftar, dan catatan dengan tinggi yang berbeda-beda, sebagian dengan foto dan emoji), dan
-halaman catatan (read-only, dengan checklist dan backlink). Fitur Today, kalender, suara, dan
+halaman catatan (read-only, dengan checklist dan backlink). Pengguna dapat mengirim pesan di
+sebuah ruang dan menambah tugas, tetapi tidak dapat mengubah atau menghapus isi, dan tidak ada
+yang disimpan setelah aplikasi ditutup. Fitur Today, kalender, suara, dan
 AI tidak dibangun, karena fitur suara dan AI membutuhkan jaringan sehingga pengukuran tidak
 dapat diulang dengan hasil yang sama.
 
