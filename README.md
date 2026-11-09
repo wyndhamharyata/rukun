@@ -21,5 +21,9 @@ Digital Entrepreneurship Product Development: spaces, tasks and notes.
 - `apps/tauri/`: the Tauri shell, from create-tauri-app's React template with its frontend taken
   out. `npx tauri build --bundles app` builds the web app and makes
   `src-tauri/target/release/bundle/macos/Rukun.app`. `npx tauri dev` uses the dev server.
+- `apps/gpui/`: the GPUI app, from GPUI Kit's getting-started guide (`cargo new` and the one
+  `gpui-kit` dependency). `cargo run` runs it, and `./bundle.sh` makes `build/Rukun.app` as GPUI
+  Kit's packaging guide does. GPUI stops drawing a window that is fully covered, so its captures
+  need the window in front.
 - `notes/`: one file per DSR iteration.
 - `methods/`: drafts for the next AFL document, in Indonesian.

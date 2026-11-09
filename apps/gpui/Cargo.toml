@@ -1,0 +1,12 @@
+[package]
+name = "rukun"
+version = "0.1.0"
+edition = "2024"
+description = "The thor research test app, Rukun, in GPUI with GPUI Kit"
+
+[dependencies]
+gpui-kit = "=0.9.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Already in GPUI Kit's tree. It gives the local time for what Nadia writes.
+chrono = "=0.4.45"

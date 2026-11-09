@@ -54,7 +54,7 @@ belum ada dan container yang dapat diklik.
 | Frontend bersama Electron dan Tauri | React 19.3.1, Vite 8.3.7, TanStack Virtual 3.14.26, TypeScript 7.0.2, Node.js 24.18.0 |
 | Electron | Electron 45.2.3, Electron Forge 8.0.1 |
 | Tauri | Tauri 2.12.5 (CLI 2.12.4, wry 0.57.1), Rust 1.99.1 |
-| GPUI | Dikunci saat aplikasinya mulai dibangun: [isi revisi GPUI dan GPUI Kit] |
+| GPUI | GPUI Kit 0.9.1 dengan GPUI snapshot `gpui-pre` 0.3.12 (dari Zed), Rust 1.99.1 |
 | Perangkat | MacBook Pro 14 inci (Mac16,1), Apple M4, RAM 16 GB, macOS 27.2 |
 
 ## 5. Tahap A: computational experiment
