@@ -1,0 +1,454 @@
+/* The test app spec, version 3: spec/test-app.html in the research repository. */
+
+:root {
+  --window: #121214;
+  --sidebar: #161618;
+  --card: #ffffff0a;
+  --line: #2e2e33;
+  --text: #f2f2f4;
+  --dim: #acacb4;
+  --faint: #8a8a93;
+  --hover: #ffffff12;
+  --selected: #ffffff1a;
+  --accent: #0a84ff;
+  --focus: #0a84ff8a;
+  --selected-row: #0a84ff2e;
+  --empty: #2a2a2f;
+
+  color-scheme: dark;
+  font: 13px / 18px -apple-system, system-ui, sans-serif;
+  color: var(--text);
+  background: var(--window);
+  cursor: default;
+  user-select: none;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* No scroll bar shows on any page. */
+* {
+  scrollbar-width: none;
+}
+
+.window {
+  display: flex;
+  height: 100%;
+}
+
+/* The hidden title bar's strip, so the window can be dragged. */
+.titlebar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 36px;
+  -webkit-app-region: drag;
+}
+
+.cell {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.dim {
+  color: var(--dim);
+}
+
+.small {
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.end {
+  text-align: right;
+}
+
+h1 {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 28px;
+  line-height: 36px;
+  font-weight: 700;
+}
+
+/* Sidebar */
+
+.sidebar {
+  flex: none;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 52px 12px 12px;
+  overflow-y: auto;
+  background: var(--sidebar);
+}
+
+.nav {
+  flex: none;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 6px;
+  line-height: 32px;
+  font-weight: 500;
+  color: var(--dim);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.nav:hover {
+  background: var(--hover);
+}
+
+.nav.current {
+  background: var(--selected);
+  color: var(--text);
+}
+
+.divider {
+  flex: none;
+  height: 1px;
+  margin: 6px 0;
+  background: var(--line);
+}
+
+/* Pages */
+
+.page {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 40px 24px 0;
+}
+
+.page.space {
+  padding-bottom: 24px;
+}
+
+.header {
+  flex: none;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* A 1-point border, clear until the field has the focus, keeps the text 10 from the edge. */
+.field {
+  flex: none;
+  width: 240px;
+  height: 28px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  outline: none;
+  background: var(--hover);
+  color: var(--text);
+  font: inherit;
+}
+
+.field::placeholder {
+  color: var(--faint);
+}
+
+.field:focus {
+  border-color: var(--focus);
+}
+
+.field.new-task {
+  width: 280px;
+}
+
+.field.composer {
+  width: 100%;
+  height: 40px;
+  margin-top: 12px;
+  padding: 0 11px;
+  border-radius: 8px;
+}
+
+/* Tasks page */
+
+.columns,
+.row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 5fr) minmax(0, 2fr) minmax(0, 2fr) 88px;
+  column-gap: 16px;
+  align-items: center;
+  padding: 0 12px;
+}
+
+.columns {
+  flex: none;
+  height: 28px;
+  margin-top: 16px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 600;
+  color: var(--faint);
+}
+
+.list,
+.timeline {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 34px;
+  border-radius: 6px;
+}
+
+.row:hover {
+  background: var(--hover);
+}
+
+.row.selected {
+  background: var(--selected-row);
+}
+
+.assignee {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dim);
+}
+
+/* Checkboxes and avatars */
+
+.checkbox {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--faint);
+  border-radius: 4px;
+  background: none;
+}
+
+.checkbox img {
+  width: 9px;
+  height: 9px;
+}
+
+.checkbox.round {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+
+.checkbox.round img {
+  width: 10px;
+  height: 10px;
+}
+
+.checkbox.done {
+  border: none;
+  background: var(--accent);
+}
+
+.avatar {
+  flex: none;
+  border-radius: 50%;
+  background: var(--empty);
+}
+
+.avatar.size20 {
+  width: 20px;
+  height: 20px;
+}
+
+.avatar.size28 {
+  width: 28px;
+  height: 28px;
+}
+
+/* Space page */
+
+.timeline {
+  margin-top: 8px;
+}
+
+.item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  gap: 12px;
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.by {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.by b {
+  font-weight: 600;
+}
+
+.by time {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--faint);
+}
+
+.message {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.message p {
+  overflow-wrap: break-word;
+}
+
+.photo {
+  width: 240px;
+  height: 180px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--empty);
+}
+
+/* A border of 1 and padding of 11 keep the content 12 from the edge. */
+.card {
+  width: 360px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+}
+
+.task-card {
+  height: 40px;
+  padding: 0 11px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.task-card .cell {
+  flex: 1;
+}
+
+.list-card {
+  padding: 11px;
+  display: flex;
+  flex-direction: column;
+}
+
+.list-card b {
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.entry {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.note-card {
+  height: 56px;
+  padding: 0 11px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.note-card:hover {
+  background: var(--hover);
+}
+
+.note-card b {
+  font-weight: 600;
+}
+
+/* Note page */
+
+.note-page {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 40px 24px 24px;
+}
+
+.note-content {
+  max-width: 640px;
+}
+
+.paragraphs {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+section {
+  margin-top: 24px;
+}
+
+h2 {
+  margin-bottom: 8px;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+}
+
+.note-task {
+  height: 34px;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) 88px;
+  column-gap: 16px;
+  align-items: center;
+  padding: 0 12px;
+}
+
+.link {
+  height: 28px;
+  line-height: 28px;
+  color: var(--accent);
+}
