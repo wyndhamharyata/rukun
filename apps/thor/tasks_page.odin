@@ -13,7 +13,15 @@ SEARCH_STYLE :: ui.Style {
 	corner_radius = 6,
 }
 
+NEW_TASK_STYLE :: ui.Style {
+	width         = {.Points, 280},
+	height        = {.Points, 28},
+	padding       = {10, 0, 10, 0},
+	corner_radius = 6,
+}
+
 tasks_page: struct {
+	new_task: kit.Text_Field,
 	search:   kit.Text_Field,
 	// Each task's title and assignee's name in lower case, for the search.
 	lowered:  [][2]string,
@@ -22,6 +30,9 @@ tasks_page: struct {
 }
 
 start_tasks_page :: proc() {
+	for pair in tasks_page.lowered do delete(pair[0])
+	for pair in tasks_page.lowered do delete(pair[1])
+	delete(tasks_page.lowered)
 	tasks_page.lowered = make([][2]string, len(rukun.tasks))
 
 	for task, index in rukun.tasks {
@@ -29,7 +40,49 @@ start_tasks_page :: proc() {
 		tasks_page.lowered[index] = {strings.to_lower(task.title), strings.to_lower(name)}
 	}
 
-	filter_tasks("")
+	filter_tasks(kit.to_field_text(&tasks_page.search))
+}
+
+// Adds the New task field's task at the top of the list. The first #name that names a space puts
+// the task there, and every such #name leaves the title. Returns false when no title is left.
+add_task :: proc() -> bool {
+	space := find_space("keluarga")
+	is_picked := false
+	words: [dynamic]string
+	defer delete(words)
+
+	for word in strings.fields(kit.to_field_text(&tasks_page.new_task), context.temp_allocator) {
+		named := find_space(word[1:]) if strings.has_prefix(word, "#") else nil
+
+		if named == nil {
+			append(&words, word)
+		} else if !is_picked {
+			space = named
+			is_picked = true
+		}
+	}
+
+	if len(words) == 0 do return false
+
+	now := now_text()
+	task := Task {
+		id       = make_id("t"),
+		title    = strings.join(words[:], " "),
+		space    = space.id,
+		assignee = USER,
+		due      = now[:10],
+	}
+	inject_at(&rukun.tasks, 0, task)
+	append(
+		&space.items,
+		Item{id = make_id("i"), author = USER, time = now, kind = "task", task = task.id},
+	)
+
+	tasks_page.selected = task.id
+	kit.set_field_text(&tasks_page.new_task, "")
+	start_tasks_page()
+
+	return true
 }
 
 filter_tasks :: proc(query: string) {
@@ -45,9 +98,19 @@ filter_tasks :: proc(query: string) {
 build_tasks_page :: proc() {
 	if ui.col("tasks", {width = ui.fill(), height = ui.fill(), padding = {24, 40, 24, 0}}) {
 		page := ui.current_parent()
+		if tasks_page.new_task.is_submitted && add_task() do ui.set_scroll(ui.find_box("list", page), 0)
 
-		if ui.row("header", {width = ui.fill(), height = ui.points(36), align = .Center}) {
+		if ui.row(
+			"header",
+			{width = ui.fill(), height = ui.points(36), align = .Center, gap = 8},
+		) {
 			kit.heading("Tasks")
+			kit.text_field(
+				&tasks_page.new_task,
+				"new task",
+				"New task #space",
+				style = NEW_TASK_STYLE,
+			)
 
 			if kit.text_field(&tasks_page.search, "search", "Search", style = SEARCH_STYLE) {
 				filter_tasks(kit.to_field_text(&tasks_page.search))

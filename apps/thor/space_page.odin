@@ -1,6 +1,7 @@
 package main
 
 import "core:fmt"
+import "core:strings"
 import "thor/app"
 import "thor/dev"
 import "thor/kit"
@@ -9,9 +10,19 @@ import "thor/ui"
 // A guess at an item's height before it is measured: a name line and two lines of text.
 ITEM_ESTIMATE :: 60
 
+COMPOSER_STYLE :: ui.Style {
+	height        = {.Points, 40},
+	padding       = {12, 0, 12, 0},
+	corner_radius = 8,
+}
+
+// One draft serves every space.
+composer: kit.Text_Field
+
 build_space_page :: proc(space: ^Space) {
-	if ui.col("space", {width = ui.fill(), height = ui.fill(), padding = {24, 40, 24, 0}}) {
+	if ui.col("space", {width = ui.fill(), height = ui.fill(), padding = {24, 40, 24, 24}}) {
 		page := ui.current_parent()
+		if composer.is_submitted && send_message(space) do ui.set_scroll(ui.find_box(space.id, page), 1e9)
 
 		if ui.row("header", {width = ui.fill(), height = ui.points(36), align = .Center}) {
 			kit.heading(fmt.tprintf("#%s", space.name))
@@ -36,7 +47,29 @@ build_space_page :: proc(space: ^Space) {
 		); ok {
 			for &item in items[first:last] do build_item(&item)
 		}
+
+		gap(12)
+		placeholder := fmt.tprintf("Message #%s", space.name)
+		kit.text_field(&composer, "composer", placeholder, style = COMPOSER_STYLE)
 	}
+}
+
+// Adds the composer's text at the end of the space. Returns false when it holds only spaces.
+send_message :: proc(space: ^Space) -> bool {
+	text := strings.trim_space(kit.to_field_text(&composer))
+	if text == "" do return false
+
+	message := Item {
+		id     = make_id("i"),
+		author = USER,
+		time   = now_text(),
+		kind   = "message",
+		text   = strings.clone(text),
+	}
+	append(&space.items, message)
+	kit.set_field_text(&composer, "")
+
+	return true
 }
 
 build_item :: proc(item: ^Item) {

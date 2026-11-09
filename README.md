@@ -12,5 +12,6 @@ Digital Entrepreneurship Product Development: spaces, tasks and notes.
 - `apps/thor/`: the thor app. `thor` is a link to `../../../thor/thor`, and `resources/` links
   the photos and avatars. Build with `odin build .` in that folder and run `./thor.bin`, or make
   `build/Rukun.app` with `./thor/bundle.sh Rukun`. `TESTAPP_PAGE=keluarga` opens a space.
+  `odin test .` there tests adding a task and sending a message.
 - `notes/`: one file per DSR iteration.
 - `methods/`: drafts for the next AFL document, in Indonesian.

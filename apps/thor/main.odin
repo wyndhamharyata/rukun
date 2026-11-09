@@ -4,8 +4,10 @@ import "core:encoding/json"
 import "core:fmt"
 import "core:os"
 import "core:strconv"
+import "core:time"
 import "thor/app"
 import "thor/kit"
+import "thor/platform"
 import "thor/ui"
 
 Member :: struct {
@@ -24,7 +26,7 @@ Item :: struct {
 
 Space :: struct {
 	id, name: string,
-	items:    []Item,
+	items:    [dynamic]Item,
 }
 
 Task :: struct {
@@ -40,6 +42,9 @@ Note :: struct {
 	tasks, links, in_spaces, in_notes: []string,
 }
 
+// Nadia, who writes the messages and tasks the app adds.
+USER :: "m1"
+
 // The line boxes of the spec's text styles, in points.
 BODY_LINE :: 18
 SMALL_LINE :: 16
@@ -53,7 +58,7 @@ CARD_COLOR :: 0xffffff0a
 rukun: struct {
 	members: []Member,
 	spaces:  []Space,
-	tasks:   []Task,
+	tasks:   [dynamic]Task,
 	notes:   []Note,
 }
 
@@ -62,18 +67,24 @@ state: struct {
 	section: string,
 	// The id of the open note, or "".
 	note:    string,
+	// Counts the messages and tasks the app adds, for their ids.
+	added:   int,
 }
 
 main :: proc() {
-	error := json.unmarshal_string(#load("../../data/rukun.json", string), &rukun)
-	assert(error == nil, "rukun.json does not parse")
-
+	load_rukun()
 	kit.colors.window = kit.to_color(0x121214ff)
 	state.section = os.get_env("TESTAPP_PAGE", context.allocator)
 	if state.section == "" do state.section = "tasks"
 
-	start_tasks_page()
 	app.run({title = "Rukun", size = {1100, 720}, min_size = {900, 600}}, frame)
+}
+
+load_rukun :: proc() {
+	error := json.unmarshal_string(#load("../../data/rukun.json", string), &rukun)
+	assert(error == nil, "rukun.json does not parse")
+
+	start_tasks_page()
 }
 
 frame :: proc() {
@@ -141,6 +152,25 @@ entry_row :: proc(id: string, entry: ^Entry) {
 		kit.checkbox("done", &entry.done, {width = ui.points(14), height = ui.points(14)})
 		kit.text(entry.text, kit.colors.dim if entry.done else {})
 	}
+}
+
+// An id for an added message or task, such as i+3, which no id in the data has.
+make_id :: proc(prefix: string) -> string {
+	state.added += 1
+
+	return fmt.aprintf("%s+%d", prefix, state.added)
+}
+
+// The Mac's local time now, as the data writes times: 2026-11-09T14:05.
+now_text :: proc() -> string {
+	local := time.time_add(
+		time.now(),
+		time.Duration(platform.read_local_offset_seconds()) * time.Second,
+	)
+	year, month, day := time.date(local)
+	hour, minute, _ := time.clock(local)
+
+	return fmt.aprintf("%04d-%02d-%02dT%02d:%02d", year, int(month), day, hour, minute)
 }
 
 gap :: proc(points: f32) {

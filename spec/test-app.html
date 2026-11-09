@@ -67,7 +67,7 @@ th { font-weight: 600; background: var(--card); }
 
 <h1>The test app: Rukun for the desktop, built four times</h1>
 
-<p>Version 2, 9 November 2026. Rukun is a shared workspace for a family: spaces such as <code>#sekolah</code> and <code>#rumah</code>, each with a timeline of messages, tasks, lists and notes. It comes from the Ideation report for Digital Entrepreneurship Product Development, where it is a mobile and web app, and it draws on Slack, Linear and Obsidian. Tahap A builds this desktop slice of it with thor, Electron, Tauri and GPUI, and measures all four. Every app follows this page to the point. All sizes are in points. Each change after the first comparator app starts goes into the change list at the end, with its date.</p>
+<p>Version 3, 9 November 2026. Rukun is a shared workspace for a family: spaces such as <code>#sekolah</code> and <code>#rumah</code>, each with a timeline of messages, tasks, lists and notes. It comes from the Ideation report for Digital Entrepreneurship Product Development, where it is a mobile and web app, and it draws on Slack, Linear and Obsidian. Tahap A builds this desktop slice of it with thor, Electron, Tauri and GPUI, and measures all four. Every app follows this page to the point. All sizes are in points. Each change after the first comparator app starts goes into the change list at the end, with its date.</p>
 
 <h2 id="about">1. The app</h2>
 <ul>
@@ -75,7 +75,8 @@ th { font-weight: 600; background: var(--card); }
 	<li>Tasks: a searchable, virtualized list of 5,000 tasks. The app opens on this page.</li>
 	<li>A space: its timeline of messages, tasks, lists and notes, newest at the bottom. Items differ in height. <code>#keluarga</code> holds 4,000 items, 232 of them with a photo.</li>
 	<li>A note: its text, its checklist, its tasks, the notes it links to, and where it is mentioned. Read-only.</li>
-	<li>The Tasks page is also the Tahap B task. The Tahap B starter is this app with the Tasks page empty.</li>
+	<li>Writing: a message sent in a space, and a task added on the Tasks page. The app's user is Nadia (<code>m1</code>), who writes both. What she writes lasts until the app quits.</li>
+	<li>The Tasks page is also the Tahap B task. The Tahap B starter is this app with the Tasks page empty, and its task card leaves out the New task field.</li>
 </ul>
 
 <div class="frames" aria-label="The Tasks page and the space page at half size">
@@ -182,7 +183,8 @@ th { font-weight: 600; background: var(--card); }
 <p>The page has padding 40 at the top and 24 at the sides, and none at the bottom.</p>
 <table>
 <tr><th>Part</th><th>Size</th><th>Content</th></tr>
-<tr><td>Header row</td><td>Height 36</td><td>"Tasks" in Heading at the left. The search field at the right, centred in the row.</td></tr>
+<tr><td>Header row</td><td>Height 36</td><td>"Tasks" in Heading at the left. At the right, the New task field, a gap of 8 and the search field, both centred in the row.</td></tr>
+<tr><td>New task field</td><td>280 × 28, radius 6, inset 10</td><td>As the search field, with the placeholder "New task #space".</td></tr>
 <tr><td>Search field</td><td>240 × 28, radius 6, inset 10</td><td>Background hover. Body text, placeholder "Search" in faint. While focused, a 1-point border of <code>#0a84ff8a</code>.</td></tr>
 <tr><td>Gap</td><td>16</td><td></td></tr>
 <tr><td>Column headers</td><td>Height 28, 1-point bottom border in line</td><td>Nothing over the checkbox, then Title, Space, Assignee, Due, in Small Semibold faint. Due aligns right.</td></tr>
@@ -196,13 +198,16 @@ th { font-weight: 600; background: var(--card); }
 	<li>Selection: a click on a row, away from its checkbox, selects that task and only it. The selected row gets <code>#0a84ff2e</code>, which wins over hover.</li>
 	<li>Search: each change shows the tasks whose title or assignee's name holds the query, ignoring case, in data order. The list goes back to its top. A hidden task stays selected.</li>
 	<li>Empty result: the list shows "No tasks match" in Body dim, centred in the list.</li>
-	<li>The page keeps its query and selection while another page shows.</li>
+	<li>New task: Return adds a task when the field holds more than spaces. A word <code>#name</code> that names a space puts the task in that space and leaves the title. Otherwise the task goes in <code>#keluarga</code>. The task is Nadia's, open, and due today by the Mac's clock. It goes first in the list, ahead of the data order, and becomes the selected task, and the list goes back to its top. The search applies to it as to any task. The same task shows as a task card at the end of its space's timeline, by Nadia, at the time it was added. The field empties and keeps the focus.</li>
+	<li>The page keeps its query, its selection and the New task field's text while another page shows.</li>
 	<li>No scroll bar shows, here or on any page.</li>
 </ul>
 
 <h2 id="space">7. Space page</h2>
 <ul>
-	<li>Padding 40 at the top and 24 at the sides. A header row of height 36 with <code>#name</code> in Heading, then a gap of 8, then the timeline, which fills the rest and scrolls, with 16 of padding at its top and bottom.</li>
+	<li>Padding 40 at the top and 24 at the sides and the bottom. A header row of height 36 with <code>#name</code> in Heading, then a gap of 8, then the timeline, which fills the rest and scrolls, with 16 of padding at its top and bottom, then a gap of 12 and the composer.</li>
+	<li>The composer: a text field the width of the page, 40 high, radius 8, inset 12, background hover. Body text, the placeholder "Message #name" in faint, and the search field's focus border.</li>
+	<li>Return sends what the composer holds when it holds more than spaces: a message by Nadia at the end of the timeline, timed by the Mac's clock. The composer empties and keeps the focus, and the timeline scrolls to its end. One draft serves every space, and it stays while another page shows.</li>
 	<li>Items run oldest at the top to newest at the bottom, 16 apart. The page opens scrolled to the bottom.</li>
 	<li>Each item: the author's avatar at 28, 12 of gap, then a column up to 640 wide. The column starts with a line of the author's name in Body strong text, 8 of gap, and the time as <code>8 Nov 2026, 21.26</code> in Small faint. Then 4 of gap and the content.</li>
 	<li>Message: the text in Body text, wrapping at the column's width. With a photo: 8 of gap, then the photo at 240 × 180, radius 8, cropped to fill.</li>
@@ -276,11 +281,12 @@ th { font-weight: 600; background: var(--card); }
 </ul>
 
 <h2 id="out">12. Out of scope</h2>
-<p>From the Ideation report: Today, the calendar, quick add, voice, asking AI, turning a message into a task, and editing notes. Also sending messages, creating or editing tasks, mentions, reactions, keyboard navigation beyond the search field, menus, drag and drop, light mode, saving anything between launches, and accessibility.</p>
+<p>From the Ideation report: Today, the calendar, quick add, voice, asking AI, turning a message into a task, and editing notes. Also editing or deleting messages and tasks, setting a task's assignee or due date, sending photos, mentions, reactions, keyboard navigation beyond the search field, menus, drag and drop, light mode, saving anything between launches, and accessibility.</p>
 
 <h2>Changes</h2>
 <table>
 <tr><th>Date</th><th>Change</th></tr>
+<tr><td>9 Nov 2026</td><td>Version 3. Nadia sends messages in a space and adds tasks on the Tasks page. Editing stays out of scope.</td></tr>
 <tr><td>9 Nov 2026</td><td>Version 2. The test app is a desktop slice of Rukun, in place of a music library browser. The image grid scenario becomes the timeline of <code>#keluarga</code>, with its photos.</td></tr>
 </table>
 

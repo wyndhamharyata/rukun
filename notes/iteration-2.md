@@ -38,7 +38,8 @@ Pain points 1 (no docs) and 9 (a border on every side) remain.
   message is 56 points from the next, as the spec works out.
 - `THOR_STARTUP_MARK=1` prints `first-frame` on the Tasks page and on `#keluarga`.
 - Not checked yet in a live window: typing in the search, ticking a task, selecting a row,
-  hover, trackpad scrolling, the sidebar, and opening a note and a space from links. The bench
+  hover, trackpad scrolling, the sidebar, opening a note and a space from links, sending a
+  message and adding a task. Tests cover what sending and adding do to the data. The bench
   over the timeline has not run, as it takes the screen.
 
 ## Lines of code
@@ -51,8 +52,12 @@ Lines that are not blank and not comments, counted with `grep` as in iteration 1
 | Boxes the page builds by hand (`ui.box`) | 16 | 1 |
 | `ui.scope` calls | 9 | 0 |
 
-The whole app is 446 lines: `main.odin` 139, `sidebar.odin` 22, `tasks_page.odin` 93,
-`space_page.odin` 126, `note_page.odin` 66. odinfmt puts each field of a style on its own line
+The whole app was 446 lines: `main.odin` 139, `sidebar.odin` 22, `tasks_page.odin` 93,
+`space_page.odin` 126, `note_page.odin` 66. Spec version 3 then added writing: a composer that
+sends a message in a space, and a New task field whose `#name` picks the task's space. With
+them the app is 544 lines (`main.odin` 159, `tasks_page.odin` 146, `space_page.odin` 151), and
+`rukun_test.odin` tests the two with `odin test .` in 50 more. The 127 above counts the Tasks
+page before the New task field, so it compares with iteration 1 feature for feature. odinfmt puts each field of a style on its own line
 once the style is too long for one, which adds a line per field.
 
 For scale: the plan's sketch of a page like this is about 20 lines. The difference is the
@@ -80,7 +85,8 @@ columns, the avatar, the empty state and the spec's exact sizes.
 
 ## Changed by this iteration
 
-- thor: `kit.list` merges its style onto a default that fits where it sits (`eec0bf9`), and
-  `Style.line_height` (`c539b59`).
+- thor: `kit.list` merges its style onto a default that fits where it sits (`eec0bf9`),
+  `Style.line_height` (`c539b59`), and `kit.list` shows its end when a scroll is set past it, as
+  sending a message does (`cc25f22`).
 - A guess that turned out wrong: a click that opens another page seemed to need a frame of its
   own. A test showed the press fade already runs those frames, so the change was not made.
