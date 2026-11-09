@@ -33,12 +33,17 @@ jendela.
 | Iterasi | Waktu | Build | Evaluate |
 | --- | --- | --- | --- |
 | 1 | Minggu 1 | Halaman Tasks dengan API mentah thor v0.1 | Jumlah baris kode dan daftar kendala |
-| 2 | Minggu 2–4 | Perbaikan API (P0) dan komponen Tier 1, lalu halaman Tasks dibangun ulang | Jumlah baris kode dan daftar kendala dibandingkan dengan iterasi 1 |
+| 2 | Minggu 1 | Perbaikan API (P0) dan komponen Tier 1, lalu seluruh aplikasi uji dibangun | Jumlah baris kode dan daftar kendala dibandingkan dengan iterasi 1 |
 | Evaluasi akhir | Minggu 8–9 | Research tag | Tahap A dan tahap B |
 
 Iterasi 1 sudah berjalan. Halaman Tasks pada v0.1 membutuhkan 256 baris kode, dan 15 kendala
 tercatat, misalnya belum ada dokumentasi, virtual list, komponen gambar, dan checkbox, serta
 input teks yang harus dihubungkan sendiri oleh aplikasi.
+
+Iterasi 2 juga sudah berjalan. Setelah perbaikan API, halaman Tasks yang sama membutuhkan 127
+baris kode, turun dari 256. Seluruh aplikasi uji (sidebar, halaman Tasks, halaman ruang, dan
+halaman catatan) membutuhkan 446 baris. Delapan kendala tersisa, misalnya dokumentasi yang
+belum ada dan container yang dapat diklik.
 
 ## 4. Versi yang dikunci dan perangkat
 
