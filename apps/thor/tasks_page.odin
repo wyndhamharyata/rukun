@@ -70,7 +70,7 @@ build_tasks_page :: proc() {
 			cell("Tasks", ui.fill(), kit.colors.text, font_size = 28, weight = .Bold)
 
 			search := ui.box("search", {width = ui.points(240), height = ui.points(28)})
-			if ui.scope(search) do kit.build_text_field(field, "field", "Search", "", height = 28)
+			if ui.scope(search) do kit.text_field(field, "field", "Search", style = {height = ui.points(28)})
 		}
 
 		ui.box("", {width = ui.fill(), height = ui.points(16)})
