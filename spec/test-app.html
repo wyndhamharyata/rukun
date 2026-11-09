@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test app spec</title>
+<style>
+:root {
+	--ink: #16181d; --dim: #5b6170; --line: #dfe2e8; --paper: #ffffff; --card: #f6f7f9; --accent: #3b5bdb;
+	--mono: ui-monospace, "SF Mono", Menlo, monospace;
+	--sans: -apple-system, system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+	:root { --ink: #e8eaef; --dim: #a0a6b4; --line: #2c3039; --paper: #121418; --card: #1a1d23; --accent: #8ea6ff; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.6 var(--sans); }
+.layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); max-width: 1180px; margin: 0 auto; }
+nav { position: sticky; top: 0; height: 100vh; overflow-y: auto; padding: 32px 20px; border-right: 1px solid var(--line); font-size: 13.5px; }
+nav a { display: block; color: var(--dim); text-decoration: none; padding: 3px 0; }
+nav a:hover { color: var(--accent); }
+nav strong { display: block; margin-bottom: 10px; font-size: 15px; color: var(--ink); }
+main { padding: 32px 48px 120px; min-width: 0; }
+h1 { font-size: 30px; line-height: 1.25; margin: 0 0 20px; }
+h2 { font-size: 22px; margin: 48px 0 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+p, ul, ol { margin: 0 0 14px; }
+li { margin: 4px 0; }
+code { font: 13px var(--mono); background: var(--card); padding: 1px 5px; border-radius: 4px; }
+pre { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font: 12.5px/1.55 var(--mono); margin: 0 0 16px; }
+pre code { background: none; padding: 0; }
+table { width: 100%; border-collapse: collapse; margin: 0 0 18px; font-size: 13.5px; }
+th, td { text-align: left; vertical-align: top; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+th { font-weight: 600; background: var(--card); }
+.swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; border: 1px solid #8888; }
+.frame { position: relative; width: 550px; height: 360px; margin: 0 0 18px; font: 7px var(--sans); color: #acacb4; background: #121214; border-radius: 6px; overflow: hidden; }
+.frame div { position: absolute; }
+.frame .lights { left: 10px; top: 9px; width: 34px; height: 6px; background: radial-gradient(circle at 3px 3px, #ff5f57 3px, transparent 3.5px), radial-gradient(circle at 17px 3px, #febc2e 3px, transparent 3.5px), radial-gradient(circle at 31px 3px, #28c840 3px, transparent 3.5px); }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+	<strong>Test app spec</strong>
+	<a href="#about">1. The app</a>
+	<a href="#window">2. Window</a>
+	<a href="#theme">3. Colours and type</a>
+	<a href="#sidebar">4. Sidebar</a>
+	<a href="#songs">5. Songs page</a>
+	<a href="#albums">6. Albums page</a>
+	<a href="#album">7. Album page</a>
+	<a href="#player">8. Player bar</a>
+	<a href="#data">9. Data</a>
+	<a href="#settings">10. Settings for the harness</a>
+	<a href="#own-way">11. What each app does its own way</a>
+	<a href="#out">12. Out of scope</a>
+</nav>
+<main>
+
+<h1>The test app: one music library, built four times</h1>
+
+<p>Version 1, 9 November 2026. Tahap A builds this app with thor, Electron, Tauri and GPUI, and measures all four. Every app follows this page to the point. All sizes are in points. Each change after the first comparator app starts goes into the change list at the end, with its date.</p>
+
+<h2 id="about">1. The app</h2>
+<ul>
+	<li>A sidebar with Songs and Albums, a page beside it, and a player bar across the bottom.</li>
+	<li>Songs: a searchable, virtualized list of 5,000 songs. It opens on this page.</li>
+	<li>Albums: a virtualized grid of 400 covers. A click opens the album's page.</li>
+	<li>The player bar shows fixed content and plays nothing. Its seek slider moves.</li>
+	<li>The Songs page is also the Tahap B task. The Tahap B starter is this app with the Songs page empty.</li>
+</ul>
+
+<div class="frame" aria-label="The Songs page at half size">
+	<div style="left:0;top:0;width:110px;height:324px;background:#161618"></div>
+	<div class="lights"></div>
+	<div style="left:6px;top:26px;width:98px;height:16px;border-radius:3px;background:#ffffff1a;color:#f2f2f4;padding:4px 6px">Songs</div>
+	<div style="left:6px;top:43px;width:98px;height:16px;padding:4px 6px">Albums</div>
+	<div style="left:122px;top:20px;font:700 14px var(--sans);color:#f2f2f4">Songs</div>
+	<div style="left:418px;top:24px;width:120px;height:14px;border-radius:3px;background:#ffffff12;padding:3px 5px;color:#8a8a93">Search</div>
+	<div style="left:122px;top:46px;width:416px;height:14px;border-bottom:1px solid #2e2e33;color:#8a8a93;padding:3px 6px">Title<span style="position:absolute;left:162px">Artist</span><span style="position:absolute;left:274px">Album</span><span style="position:absolute;right:6px">Time</span></div>
+	<div style="left:122px;top:60px;width:416px;height:264px;background:repeating-linear-gradient(#0000 0 1px, #0000 1px 17px);color:#f2f2f4;line-height:17px;padding:0 6px">
+		Amber Avenue<br>Amber Circle<br><span style="display:block;margin:0 -6px;padding:0 6px;background:#0a84ff2e;border-radius:3px">Amber Cloud</span>Amber Ember<br>Amber Engine<br>Amber Engine<br>Amber Engine Over The Glass Mountains<br>Amber Feather<br>…
+	</div>
+	<div style="left:0;top:324px;width:550px;height:36px;background:#1b1b1e;border-top:1px solid #2e2e33"></div>
+	<div style="left:12px;top:333px;color:#f2f2f4">Amber Avenue</div>
+	<div style="left:12px;top:343px">The Careless Postcards</div>
+	<div style="left:247px;top:329px;width:56px;height:12px;color:#f2f2f4;text-align:center;letter-spacing:6px">◀◀ ▶ ▶▶</div>
+	<div style="left:185px;top:346px;width:180px;height:2px;border-radius:1px;background:linear-gradient(90deg,#acacb4 32%,#3a3a40 32%)"></div>
+</div>
+<p>The Songs page at half size, with the third row selected.</p>
+
+<h2 id="window">2. Window</h2>
+<table>
+<tr><th>Property</th><th>Value</th></tr>
+<tr><td>Title</td><td>Library</td></tr>
+<tr><td>Content size</td><td>1100 × 720 when it opens, 900 × 600 at least. Resizable.</td></tr>
+<tr><td>Title bar</td><td>Hidden. The content fills the window, and the traffic lights sit over the sidebar.</td></tr>
+<tr><td>Background</td><td>Opaque <code>#121214</code>. No vibrancy and no blur.</td></tr>
+<tr><td>Appearance</td><td>Dark, whatever the system setting.</td></tr>
+<tr><td>Regions</td><td>Player bar: the bottom 72, full width. Sidebar: the left 220 above it. Page: the rest.</td></tr>
+</table>
+
+<h2 id="theme">3. Colours and type</h2>
+<table>
+<tr><th>Name</th><th>Value</th><th>Used for</th></tr>
+<tr><td>window</td><td><span class="swatch" style="background:#121214"></span><code>#121214</code></td><td>Window and page background</td></tr>
+<tr><td>sidebar</td><td><span class="swatch" style="background:#161618"></span><code>#161618</code></td><td>Sidebar background</td></tr>
+<tr><td>bar</td><td><span class="swatch" style="background:#1b1b1e"></span><code>#1b1b1e</code></td><td>Player bar background</td></tr>
+<tr><td>line</td><td><span class="swatch" style="background:#2e2e33"></span><code>#2e2e33</code></td><td>Borders, 1 point</td></tr>
+<tr><td>text</td><td><span class="swatch" style="background:#f2f2f4"></span><code>#f2f2f4</code></td><td>Main text</td></tr>
+<tr><td>dim</td><td><span class="swatch" style="background:#acacb4"></span><code>#acacb4</code></td><td>Second-rank text, slider fill</td></tr>
+<tr><td>faint</td><td><span class="swatch" style="background:#8a8a93"></span><code>#8a8a93</code></td><td>Column headers, placeholder, times in the player bar</td></tr>
+<tr><td>hover</td><td><span class="swatch" style="background:#ffffff12"></span><code>#ffffff12</code></td><td>A row or button under the pointer. Also the search field's background.</td></tr>
+<tr><td>selected</td><td><span class="swatch" style="background:#ffffff1a"></span><code>#ffffff1a</code></td><td>The current sidebar row, a pressed button</td></tr>
+<tr><td>accent</td><td><span class="swatch" style="background:#0a84ff"></span><code>#0a84ff</code></td><td>Focus border at <code>#0a84ff8a</code>, selected song row at <code>#0a84ff2e</code></td></tr>
+<tr><td>track</td><td><span class="swatch" style="background:#3a3a40"></span><code>#3a3a40</code></td><td>Slider track</td></tr>
+</table>
+<p>Hex values with 8 digits end in alpha. Colours are sRGB.</p>
+
+<p>Every text uses the system UI font, SF Pro, with its default features. Text that does not fit ends in an ellipsis on one line. Nothing wraps.</p>
+<table>
+<tr><th>Style</th><th>Size</th><th>Weight</th><th>Line box</th></tr>
+<tr><td>Heading</td><td>28</td><td>Bold</td><td>36</td></tr>
+<tr><td>Body</td><td>13</td><td>Regular</td><td>18</td></tr>
+<tr><td>Body strong</td><td>13</td><td>Medium (sidebar, album tile title), Semibold (player title)</td><td>18</td></tr>
+<tr><td>Small</td><td>12</td><td>Regular, Semibold for column headers</td><td>16</td></tr>
+<tr><td>Time</td><td>11</td><td>Regular</td><td>14</td></tr>
+<tr><td>Subheading</td><td>15</td><td>Medium</td><td>20</td></tr>
+</table>
+<p>A text box takes the height of its line box, and the text sits centred in it. Where this page gives a row height, the row wins.</p>
+
+<h2 id="sidebar">4. Sidebar</h2>
+<ul>
+	<li>Padding: 52 at the top (below the traffic lights), 12 at the sides.</li>
+	<li>Two rows, Songs then Albums: 32 high, full width, 2 apart, corner radius 6, label inset 12, Body strong.</li>
+	<li>The row of the current page: background selected, text text. The album page counts as Albums. Other rows: text dim, background hover under the pointer.</li>
+	<li>A click on a row shows its page at the top of its scroll.</li>
+</ul>
+
+<h2 id="songs">5. Songs page</h2>
+<p>The page has padding 40 at the top and 24 at the sides, and none at the bottom.</p>
+<table>
+<tr><th>Part</th><th>Size</th><th>Content</th></tr>
+<tr><td>Header row</td><td>Height 36</td><td>"Songs" in Heading at the left. The search field at the right, centred in the row.</td></tr>
+<tr><td>Search field</td><td>240 × 28, radius 6, inset 10</td><td>Background hover. Body text, placeholder "Search" in faint. While focused, a 1-point border of <code>#0a84ff8a</code>.</td></tr>
+<tr><td>Gap</td><td>16</td><td></td></tr>
+<tr><td>Column headers</td><td>Height 28, 1-point bottom border in line</td><td>Title, Artist, Album, Time, in Small Semibold faint. Time aligns right.</td></tr>
+<tr><td>List</td><td>The rest of the page's height</td><td>Scrolls under the column headers, which stay. 12 of padding below the last row.</td></tr>
+<tr><td>Row</td><td>Height 34, radius 6, inset 12</td><td>Title in Body text. Artist, album and time in Body dim. The time aligns right.</td></tr>
+</table>
+<p>The column headers and rows share one column rule: four columns of <code>4fr 3fr 3fr 56</code> with 16 between them, inside the 12 of inset. In CSS this is <code>grid-template-columns: 4fr 3fr 3fr 56px; column-gap: 16px</code>. The time reads <code>m:ss</code>.</p>
+<ul>
+	<li>Hover: a row under the pointer gets background hover.</li>
+	<li>Selection: a click on a row selects its song, and only that song. The selected row gets <code>#0a84ff2e</code>, which wins over hover. One selected song is shared with the album page.</li>
+	<li>Search: each change filters the songs whose title or artist holds the query, ignoring case, in library order. The list goes back to its top. A hidden song stays selected.</li>
+	<li>Empty result: the list shows "No songs match" in Body dim, centred in the list.</li>
+	<li>The page keeps its query and selection while another page shows.</li>
+	<li>No scroll bar shows.</li>
+</ul>
+
+<h2 id="albums">6. Albums page</h2>
+<ul>
+	<li>Padding as on the Songs page. A header row of height 36 with "Albums" in Heading, then a gap of 16, then the grid, which scrolls with 24 of padding at its bottom.</li>
+	<li>Tiles are 180 wide and 222 high: the cover at 180 × 180 with radius 6, a gap of 8, the title in Body strong text (line box 18), and the artist in Small dim (line box 16).</li>
+	<li>Columns: <code>max(1, floor((W + 24) / 204))</code>, where W is the page's width less its padding. Tiles sit from the left with 24 between them on both axes. At 1100 wide there are 4 columns.</li>
+	<li>Albums keep library order. The grid builds only the rows on screen.</li>
+	<li>A click on a tile opens that album's page. Tiles have no hover state.</li>
+	<li>A cover shows in place once it decodes, with no fade. Until then the tile shows <code>#2a2a2f</code>.</li>
+</ul>
+
+<h2 id="album">7. Album page</h2>
+<ul>
+	<li>The whole page scrolls as one, with the padding of the Songs page and 24 at the bottom.</li>
+	<li>Header, 180 high: the cover at 180 × 180, radius 6. Then 24 of gap and a column of the album title in Heading and, below it, "Artist · Year" in Subheading dim. Both centre on the cover's vertical middle.</li>
+	<li>Then a gap of 24, column headers as on the Songs page with "#", "Title" and "Time", and the album's songs in track order.</li>
+	<li>Columns: <code>32 1fr 56</code> with 16 between them. "#" is the track number in Body faint, aligned right. The title is Body text, the time Body dim aligned right.</li>
+	<li>Rows hover and select as on the Songs page, with the same selected song.</li>
+</ul>
+
+<h2 id="player">8. Player bar</h2>
+<ul>
+	<li>72 high, background bar, a 1-point top border in line, 24 of inset at the sides.</li>
+	<li>Left: a column 280 wide, centred vertically, with the first song of the library: its title in Body Semibold text, 2 of gap, its artist in Small dim.</li>
+	<li>Centre, at the horizontal middle of the window: a column of the buttons, 4 of gap, then the slider row. The column is 52 high, centred vertically.</li>
+	<li>Buttons: backward, play, forward. Each 32 × 32, round, 16 apart. Icons are 16 square, 20 for play. Play's icon is text, the others dim. Background hover under the pointer, selected while pressed. A click does nothing.</li>
+	<li>Slider row, 16 high: the position in Time faint, right-aligned in 40; 8 of gap; the track, 360 × 4 with radius 2 in track colour, filled from the left in dim up to the value, with a 12-point knob in text centred on the value; 8 of gap; the song's length in Time faint, left-aligned in 40.</li>
+	<li>The value starts at 0.32. Pressing or dragging anywhere in the 360 × 16 of the track sets the value to the pointer's place, from 0 to 1. The position reads <code>floor(value × seconds)</code> as <code>m:ss</code>.</li>
+</ul>
+
+<h2 id="data">9. Data</h2>
+<p><code>data/generate.py</code> makes the data from a fixed seed. The output is committed, so every app reads the same bytes.</p>
+<ul>
+	<li><code>data/library.json</code>, built into each app at compile time: 400 albums by 150 artists, and 5,000 songs. About 5% of titles are in Japanese, so each app falls back to a Japanese font. About 10% of song titles are long enough to end in an ellipsis.</li>
+	<li><code>data/covers/a0001.jpg</code> to <code>a0400.jpg</code>: 360 × 360 JPEGs, the 180-point cover on a 2× screen. They ship as files in the <code>.app</code>.</li>
+</ul>
+<pre><code>{
+ "albums": [
+  {"id": "a0001", "title": "Amber Echoes", "artist": "Pax Quill", "year": 2018, "cover": "a0001.jpg"},
+  …
+ ],
+ "songs": [
+  {"id": "s00001", "title": "Amber Avenue", "artist": "The Careless Postcards", "album": "Running Through The Telephone",
+   "album_id": "a0245", "track": 2, "seconds": 196},
+  …
+ ]
+}</code></pre>
+<p>Both lists come sorted by title, which is library order. <code>album</code> repeats the album's title, so the Songs page needs no lookup.</p>
+
+<h2 id="settings">10. Settings for the harness</h2>
+<p>Each app reads these environment variables and does nothing else for the tests. The harness reads the app's stdout.</p>
+<table>
+<tr><th>Variable</th><th>Behaviour</th></tr>
+<tr><td><code>TESTAPP_MARK=1</code></td><td>After the first frame that draws rows of the page it opened on, print the line <code>first-frame</code> and flush.</td></tr>
+<tr><td><code>TESTAPP_PAGE=albums</code></td><td>Open on the Albums page in place of Songs.</td></tr>
+<tr><td><code>TESTAPP_SCROLL=1</code></td><td>One second after the first frame, scroll the open page's list at 1,500 points per second for <code>TESTAPP_SCROLL_SECONDS</code> (20 by default), turning back at either end. Set the scroll once per frame, in the display-driven callback, from the time since the scroll began. Record the monotonic time at the start of every frame. When the time is up, print one line per frame, <code>frame &lt;microseconds since the scroll began&gt;</code>, then <code>done</code>, and quit.</td></tr>
+</table>
+<p>The display-driven callback is thor's display link, <code>requestAnimationFrame</code> in Electron and Tauri, and GPUI's frame callback. The web apps send their lines from the page to the main process, which prints them. For thor, backlog item 6 builds these into <code>dev</code> as <code>THOR_STARTUP_MARK</code> and <code>THOR_BENCH</code>, and the harness sets both names.</p>
+
+<h2 id="own-way">11. What each app does its own way</h2>
+<p>The report names each of these per app.</p>
+<ul>
+	<li>Text: the framework's own text stack and the system font. No web fonts.</li>
+	<li>Long lists and the grid: the framework's usual tool. TanStack Virtual for Electron and Tauri, <code>uniform_list</code> for GPUI, <code>kit.list</code> for thor.</li>
+	<li>Covers: the framework's usual way to show an image file. An <code>&lt;img&gt;</code> for the web apps, <code>img()</code> for GPUI, <code>image</code> for thor.</li>
+	<li>Icons: thor draws the SF Symbols <code>backward.fill</code>, <code>play.fill</code> and <code>forward.fill</code>. The other apps draw <code>spec/icons/*.svg</code>.</li>
+	<li>Hover may fade, for 0.35 s at most. Nothing else animates, so the app goes idle once the pointer stops.</li>
+	<li>Release builds use each framework's own release settings.</li>
+</ul>
+
+<h2 id="out">12. Out of scope</h2>
+<p>Playback and audio. Keyboard navigation beyond the search field. Menus, context menus and drag and drop. Light mode. Saving anything between launches. Accessibility.</p>
+
+<h2>Changes</h2>
+<p>None yet.</p>
+
+</main>
+</div>
+</body>
+</html>
