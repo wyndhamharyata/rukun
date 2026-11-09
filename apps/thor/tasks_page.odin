@@ -31,7 +31,6 @@ tasks_page: struct {
 }
 
 start_tasks_page :: proc() {
-	kit.register_text_field(&tasks_page.search)
 	tasks_page.lowered = make([][2]string, len(rukun.tasks))
 
 	for task, index in rukun.tasks {
@@ -54,7 +53,6 @@ filter_tasks :: proc(query: string) {
 
 build_tasks_page :: proc() {
 	field := &tasks_page.search
-	kit.apply_text_events(platform.list_events())
 	if field.is_changed do filter_tasks(kit.to_field_text(field))
 
 	page := ui.box(
@@ -117,7 +115,6 @@ build_tasks_page :: proc() {
 		if ui.scope(list) do build_task_rows(list)
 	}
 
-	kit.finish_text_fields()
 }
 
 build_task_rows :: proc(list: ^ui.Box) {
