@@ -81,8 +81,8 @@ aplikasi dibuka pada halaman Tasks.
 
 ### Kondisi pengukuran
 
-Satu Mac, terhubung ke listrik, Low Power Mode mati. Pengukuran memakai layar bawaan dengan
-refresh rate 60 Hz, dan monitor eksternal dilepas. Satu aplikasi berjalan pada satu waktu,
+Satu Mac, terhubung ke listrik, Low Power Mode mati. Pengukuran memakai monitor eksternal
+2560 × 1440 dengan refresh rate 75 Hz sebagai layar utama, tempat setiap jendela dibuka. Satu aplikasi berjalan pada satu waktu,
 dengan ukuran jendela yang sama (1.100 × 720 point). Safari dan aplikasi lain berbasis WebKit
 ditutup.
 
