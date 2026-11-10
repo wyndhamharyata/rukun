@@ -76,6 +76,10 @@ main :: proc() {
 	kit.colors.window = kit.to_color(0x121214ff)
 	state.section = os.get_env("TESTAPP_PAGE", context.allocator)
 	if state.section == "" do state.section = "tasks"
+	// The harness speaks the spec's names; thor's dev package reads its own.
+	if os.get_env("TESTAPP_MARK", context.temp_allocator) == "1" do os.set_env("THOR_STARTUP_MARK", "1")
+	if os.get_env("TESTAPP_SCROLL", context.temp_allocator) == "1" do os.set_env("THOR_BENCH", "1")
+	if seconds := os.get_env("TESTAPP_SCROLL_SECONDS", context.temp_allocator); seconds != "" do os.set_env("THOR_BENCH_SECONDS", seconds)
 
 	app.run({title = "Rukun", size = {1100, 720}, min_size = {900, 600}}, frame)
 }
