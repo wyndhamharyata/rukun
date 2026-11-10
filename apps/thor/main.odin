@@ -67,7 +67,10 @@ state: struct {
 
 main :: proc() {
 	load_rukun()
-	kit.colors.window = kit.to_color(0x121214ff)
+	// Dark with a set accent, so every run shows and measures the same app.
+	kit.appearance = .Dark
+	kit.dark_colors.window = kit.to_color(0x121214ff)
+	kit.dark_colors.accent = kit.DEFAULT_ACCENT
 	state.section = os.get_env("TESTAPP_PAGE", context.allocator)
 	if state.section == "" do state.section = "tasks"
 	// The harness speaks the spec's names; thor's dev package reads its own.
