@@ -84,6 +84,10 @@ columns, the avatar, the empty state and the spec's exact sizes.
 - 6: a second box with an id its parent already built gets a box of its own, which keeps the
   layout whole, and thor prints once which id repeats. Before, it took the first box and cut the
   tree.
+- 7: `kit.line_heights`, a type scale of font size to line height, starting with the spec's.
+  The app no longer writes `line_height` on any text.
+- 5: kept as a divider, by decision: thor's borders stay one width on all four sides, and the
+  cheatsheet shows the header pattern.
 - The "Window move completed without beginning" line: AppKit prints it on the move-end event
   (subtype 21) under thor's own event loop, even after the move's begin. GPUI, Tauri and Electron
   do not print it. thor now keeps that event from AppKit (`thor` after `cc87504`). Checked with

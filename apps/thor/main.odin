@@ -45,12 +45,6 @@ Note :: struct {
 // Nadia, who writes the messages and tasks the app adds.
 USER :: "m1"
 
-// The line boxes of the spec's text styles, in points.
-BODY_LINE :: 18
-SMALL_LINE :: 16
-SUBHEADING_LINE :: 20
-HEADING_LINE :: 36
-
 SIDEBAR_COLOR :: 0x161618ff
 
 CARD_COLOR :: 0xffffff0a

@@ -8,11 +8,11 @@ build_note_page :: proc(note: ^Note) {
 	// The scroll's id is the note's, so each note opens at its top.
 	if ui.scroll(note.id, {padding = {24, 40, 24, 24}}) {
 		if ui.col("content", {width = ui.fill(), max_size = {640, 0}}) {
-			kit.text(note.title, font_size = 28, weight = .Bold, line_height = HEADING_LINE)
+			kit.text(note.title, font_size = 28, weight = .Bold)
 			gap(16)
 
 			if ui.col("body", {width = ui.fill(), gap = 12}) {
-				for paragraph in note.body do kit.paragraph(paragraph, line_height = BODY_LINE)
+				for paragraph in note.body do kit.paragraph(paragraph)
 			}
 
 			if len(note.checklist) > 0 {
@@ -47,7 +47,7 @@ build_note_page :: proc(note: ^Note) {
 
 build_section_title :: proc(title: string) {
 	gap(24)
-	kit.text(title, font_size = 15, weight = .Semibold, line_height = SUBHEADING_LINE)
+	kit.text(title, font_size = 15, weight = .Semibold)
 	gap(8)
 }
 

@@ -79,20 +79,8 @@ build_item :: proc(item: ^Item) {
 
 		if ui.col("body", {width = ui.fill(), max_size = {640, 0}, gap = 4}) {
 			if ui.row("by", {align = .Center, gap = 8}) {
-				kit.text(
-					author.name,
-					weight = .Semibold,
-					width = ui.fit_text(),
-					line_height = BODY_LINE,
-				)
-				time := to_time_text(item.time)
-				kit.text(
-					time,
-					kit.colors.faint,
-					12,
-					width = ui.fit_text(),
-					line_height = SMALL_LINE,
-				)
+				kit.text(author.name, weight = .Semibold, width = ui.fit_text())
+				kit.text(to_time_text(item.time), kit.colors.faint, 12, width = ui.fit_text())
 			}
 
 			switch item.kind {
@@ -111,7 +99,7 @@ build_item :: proc(item: ^Item) {
 
 build_message :: proc(item: ^Item) {
 	if ui.col("message", {width = ui.fill(), gap = 8}) {
-		kit.paragraph(item.text, line_height = BODY_LINE)
+		kit.paragraph(item.text)
 
 		if item.photo != "" {
 			path := app.resource_path(fmt.tprintf("photos/%s", item.photo))
@@ -151,7 +139,7 @@ build_task_card :: proc(task: ^Task) {
 
 build_list_card :: proc(item: ^Item) {
 	if ui.col("list", to_card_style({padding = 12})) {
-		kit.text(item.title, weight = .Semibold, line_height = BODY_LINE)
+		kit.text(item.title, weight = .Semibold)
 		gap(6)
 
 		for &entry, index in item.entries do entry_row(fmt.tprint(index), &entry)
