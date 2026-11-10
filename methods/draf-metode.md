@@ -92,7 +92,7 @@ ditutup.
 | --- | --- | --- |
 | Startup time (ms) | Waktu dari harness menjalankan executable di dalam `.app` hingga baris `first-frame` diterima dari stdout aplikasi. Baris ini dicetak setelah frame pertama yang menampilkan daftar tugas. Diukur sebagai warm start. | Skrip harness |
 | Frame time p50 dan p99 (ms) | Selang antara awal dua frame berurutan selama aplikasi menggulir dirinya sendiri dengan kecepatan 1.500 point per detik selama 20 detik. Waktu diambil di callback yang digerakkan layar: display link pada thor, `requestAnimationFrame` pada Electron dan Tauri, dan frame callback pada GPUI. | Log aplikasi, diolah oleh harness |
-| Memory usage (MB) | Physical footprint, dijumlahkan dari semua proses milik aplikasi: main, renderer, GPU, dan utility pada Electron, serta proses aplikasi dan layanan XPC WebKit (WebContent, Networking, GPU) pada Tauri. Dilaporkan rata-rata dan puncaknya selama skenario. | `footprint` atau `vmmap` [isi] |
+| Memory usage (MB) | Physical footprint, dijumlahkan dari semua proses milik aplikasi: pohon proses aplikasi (main, renderer, GPU, dan utility pada Electron), ditambah layanan XPC yang oleh macOS dihitung sebagai anaknya (WebContent dan GPU milik WebView Tauri). Diambil tiap detik; dilaporkan rata-rata dan puncaknya selama skenario. | `footprint --targetChildren` |
 | Idle CPU usage (%) | Total CPU time semua proses milik aplikasi selama 60 detik tanpa input, dibagi 60 detik, dalam persen satu core. | `ps` atau `top` [isi] |
 | Bundle size (MB) | Ukuran `.app` hasil release build. | `du` |
 | Clean build time (detik) | Dari source hingga `.app` release, setelah semua dependensi diunduh dan semua cache serta output build dihapus. | `hyperfine` |
