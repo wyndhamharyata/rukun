@@ -26,5 +26,11 @@ Digital Entrepreneurship Product Development: spaces, tasks and notes.
   `gpui-kit` dependency). `cargo run` runs it, and `./bundle.sh` makes `build/Rukun.app` as GPUI
   Kit's packaging guide does. GPUI stops drawing a window that is fully covered, so its captures
   need the window in front.
+- `harness/`: the Tahap A measurements. `python3 -I harness/run.py` opens each app's `.app` in
+  front (GPUI stops drawing a covered window) and runs S1 start, S2 and S3 scrolls and S4 idle,
+  `--runs` times each, with `--apps`, `--idle`, `--scroll-seconds` and `--build` (a clean build
+  first, slow). Results go to `harness/results/` (not committed); `harness/compare.py` lines up
+  result files. `--self-test` checks its parsing. Leave the mouse and keyboard alone while it runs,
+  with the 75 Hz external screen as the main display.
 - `notes/`: one file per DSR iteration.
 - `methods/`: drafts for the next AFL document, in Indonesian.

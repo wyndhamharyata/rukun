@@ -90,12 +90,12 @@ ditutup.
 
 | Variabel | Definisi | Alat ukur |
 | --- | --- | --- |
-| Startup time (ms) | Waktu dari harness menjalankan executable di dalam `.app` hingga baris `first-frame` diterima dari stdout aplikasi. Baris ini dicetak setelah frame pertama yang menampilkan daftar tugas. Diukur sebagai warm start. | Skrip harness |
+| Startup time (ms) | Waktu dari harness membuka `.app` dengan `open -n` hingga baris `first-frame` diterima dari stdout aplikasi. Baris ini dicetak setelah frame pertama yang menampilkan daftar tugas. Waktu macOS meluncurkan aplikasi ikut terhitung, sama bagi keempat framework. Diukur sebagai warm start. | Skrip harness |
 | Frame time p50 dan p99 (ms) | Selang antara awal dua frame berurutan selama aplikasi menggulir dirinya sendiri dengan kecepatan 1.500 point per detik selama 20 detik. Waktu diambil di callback yang digerakkan layar: display link pada thor, `requestAnimationFrame` pada Electron dan Tauri, dan frame callback pada GPUI. | Log aplikasi, diolah oleh harness |
 | Memory usage (MB) | Physical footprint, dijumlahkan dari semua proses milik aplikasi: pohon proses aplikasi (main, renderer, GPU, dan utility pada Electron), ditambah layanan XPC yang oleh macOS dihitung sebagai anaknya (WebContent dan GPU milik WebView Tauri). Diambil tiap detik; dilaporkan rata-rata dan puncaknya selama skenario. | `footprint --targetChildren` |
-| Idle CPU usage (%) | Total CPU time semua proses milik aplikasi selama 60 detik tanpa input, dibagi 60 detik, dalam persen satu core. | `ps` atau `top` [isi] |
+| CPU usage (%) | Total CPU time semua proses milik aplikasi (seperti pada memory) dibagi lama pengamatan, dalam persen satu core. Setiap proses dihitung sejak sampel pertama yang memuatnya, diambil tiap detik. Pada S2 dan S3 pengamatan dimulai saat gulir dimulai; pada S4 selama 60 detik tanpa input. | `ps`, oleh skrip harness |
 | Bundle size (MB) | Ukuran `.app` hasil release build. | `du` |
-| Clean build time (detik) | Dari source hingga `.app` release, setelah semua dependensi diunduh dan semua cache serta output build dihapus. | `hyperfine` |
+| Clean build time (detik) | Dari source hingga `.app` release, setelah semua dependensi diunduh dan semua cache serta output build dihapus. Pada Electron termasuk build frontend React, seperti pada Tauri. | Skrip harness (`--build`) |
 | Incremental build time (detik) | Dari menyimpan perubahan satu label hingga label baru tampil, dengan siklus pengembangan bawaan tiap framework: hot reload Vite pada Electron dan Tauri, build ulang dan jalankan ulang pada GPUI dan thor. | Stopwatch dari rekaman layar |
 | Lines of code (baris) | Baris kode aplikasi uji yang ditulis peneliti, tanpa kode framework, file yang dihasilkan otomatis, dan aset. | `tokei` |
 | Setup time (menit) | Waktu dari mesin virtual macOS yang bersih hingga aplikasi uji berjalan, mengikuti panduan getting started resmi tiap framework. Waktu unduh dan instalasi termasuk. Setiap langkah dicatat. | Stopwatch dan catatan langkah |
@@ -107,12 +107,12 @@ ditutup.
 | Setup | Setup time | Satu mesin virtual macOS bersih per framework (misalnya Tart). |
 | S1 start | Startup time | Harness menjalankan aplikasi, menunggu baris `first-frame`, lalu menutupnya. 10 run setelah 1 run yang dibuang. |
 | S2 gulir tugas | Frame time, CPU, memory | Aplikasi menggulir daftar tugas sendiri dengan kecepatan dan durasi tetap. Semua baris setinggi sama. |
-| S3 gulir timeline | Frame time, memory puncak | Sama, pada timeline `#keluarga`: item dengan tinggi berbeda, teks yang membungkus, emoji, dan 232 foto yang ikut di-decode. |
-| S4 idle | Idle CPU | 60 detik tanpa input, setelah S1. |
+| S3 gulir timeline | Frame time, CPU, memory | Sama, pada timeline `#keluarga`: item dengan tinggi berbeda, teks yang membungkus, emoji, dan 232 foto yang ikut di-decode. |
+| S4 idle | CPU, memory | 60 detik tanpa input, dimulai 5 detik setelah `first-frame`. |
 | Build | Clean dan incremental build time | Seperti definisi di atas. |
 | Ukuran dan kode | Bundle size, lines of code | Seperti definisi di atas. |
 
-Setiap skenario diulang 10 kali.
+Setiap skenario diulang 10 kali. Jendela aplikasi dibuka di depan, karena GPUI berhenti menggambar jendela yang tertutup penuh. Uji coba harness (dua kali, masing-masing 3 ulangan) memberi median yang selisihnya paling banyak 6,3% untuk startup, frame time, CPU saat gulir, dan memory. Idle CPU berada di batas resolusi `ps` (0,01 detik), sehingga dibandingkan sebagai selisih mutlak.
 
 ### Analisis
 
@@ -177,13 +177,10 @@ Minggu dihitung dari Senin, 9 November 2026.
 
 | Minggu | Tanggal | Framework | Penelitian |
 | --- | --- | --- | --- |
-| 1 | 9–15 Nov | Odin dikunci. thor v0.1. Iterasi 1. | Perbaikan metode. Spesifikasi aplikasi uji. Generator data. |
-| 2 | 16–22 Nov | Perbaikan API P0 (1, 2, 4, 5). | Frontend React untuk Electron dan Tauri. Kunci versinya. |
-| 3 | 23–29 Nov | Komponen Tier 1, alat ukur, bundle. | Frontend React. |
-| 4 | 30 Nov–6 Des | Aplikasi uji lengkap di thor. Iterasi 2. | Aplikasi GPUI. Kunci revisinya. |
-| 5 | 7–13 Des | Cadangan. | Aplikasi GPUI. Skrip harness. |
-| 6 | 14–20 Des | Cadangan. | Tangkapan layar keempat aplikasi berdampingan. |
-| 7 | 21–27 Des | Dokumentasi. Pilot sebelum 23 Desember. Research tag. | Uji coba harness. |
+| 1 | 9–15 Nov | Selesai: Odin dikunci, thor v0.1, item P0 1–6, 8 dan 25, iterasi 1 dan 2. | Selesai: metode, spesifikasi aplikasi uji, generator data, keempat aplikasi uji dengan versi terkunci, skrip harness dan uji cobanya. |
+| 2 | 16–22 Nov | Selesai lebih awal: pain point iterasi 2, komponen Tier 1 (item 3), draf dokumentasi (item 7). | Selesai lebih awal: aplikasi uji diperiksa dengan input nyata di keempat framework. |
+| 3–6 | 23 Nov–20 Des | Cadangan, untuk item P1 bila sempat. | Cadangan. |
+| 7 | 21–27 Des | Dokumentasi final. Pilot sebelum 23 Desember. Research tag. | Uji coba harness pada build kandidat. |
 | 8 | 28 Des–3 Jan | | Tahap A. |
 | 9 | 4–10 Jan | | Tahap B. Analisis dimulai. |
 
