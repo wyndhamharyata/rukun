@@ -69,8 +69,8 @@ main :: proc() {
 	load_rukun()
 	// Dark with a set accent, so every run shows and measures the same app.
 	kit.appearance = .Dark
-	kit.dark_colors.window = kit.to_color(0x121214ff)
-	kit.dark_colors.accent = kit.DEFAULT_ACCENT
+	kit.dark_colors.base_100 = kit.to_color(0x121214ff)
+	kit.dark_colors.primary = kit.DEFAULT_PRIMARY
 	state.section = os.get_env("TESTAPP_PAGE", context.allocator)
 	if state.section == "" do state.section = "tasks"
 	// The harness speaks the spec's names; thor's dev package reads its own.
@@ -144,14 +144,14 @@ avatar :: proc(member: ^Member, size: f32) {
 }
 
 task_checkbox :: proc(task: ^Task) {
-	kit.checkbox("done", &task.done, {corner_radius = 8})
+	kit.checkbox("done", &task.done, style = {corner_radius = 8})
 }
 
 // A checklist entry: a square checkbox and its text, in a row 24 high.
 entry_row :: proc(id: string, entry: ^Entry) {
 	if ui.row(id, {width = ui.fill(), height = ui.points(24), align = .Center, gap = 8}) {
-		kit.checkbox("done", &entry.done, {width = ui.points(14), height = ui.points(14)})
-		kit.text(entry.text, kit.colors.dim if entry.done else {})
+		kit.checkbox("done", &entry.done, style = {width = ui.points(14), height = ui.points(14)})
+		kit.text(entry.text, kit.to_faded(kit.colors.base_content, 0.7) if entry.done else {})
 	}
 }
 

@@ -62,8 +62,8 @@ build_note_task :: proc(task: ^Task) {
 
 	if ui.row(task.id, style) {
 		task_checkbox(task)
-		kit.text(task.title, kit.colors.dim if task.done else {})
-		kit.text(to_date_text(task.due), kit.colors.dim, width = ui.points(88), align = .End)
+		kit.text(task.title, kit.to_faded(kit.colors.base_content, 0.7) if task.done else {})
+		kit.text(to_date_text(task.due), kit.to_faded(kit.colors.base_content, 0.7), width = ui.points(88), align = .End)
 	}
 }
 
@@ -71,7 +71,7 @@ link :: proc(id, label: string) -> bool {
 	style := ui.Style {
 		width      = ui.fill(),
 		height     = ui.points(28),
-		text_color = kit.colors.accent,
+		text_color = kit.colors.primary,
 		flags      = {.Clickable, .Truncate_Text},
 	}
 

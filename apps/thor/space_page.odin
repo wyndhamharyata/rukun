@@ -80,7 +80,7 @@ build_item :: proc(item: ^Item) {
 		if ui.col("body", {width = ui.fill(), max_size = {640, 0}, gap = 4}) {
 			if ui.row("by", {align = .Center, gap = 8}) {
 				kit.text(author.name, weight = .Semibold, width = ui.fit_text())
-				kit.text(to_time_text(item.time), kit.colors.faint, 12, width = ui.fit_text())
+				kit.text(to_time_text(item.time), kit.to_faded(kit.colors.base_content, 0.5), 12, width = ui.fit_text())
 			}
 
 			switch item.kind {
@@ -119,7 +119,7 @@ to_card_style :: proc(changes: ui.Style) -> ui.Style {
 		corner_radius = 8,
 		background    = kit.to_color(CARD_COLOR),
 		border_width  = 1,
-		border_color  = kit.colors.line,
+		border_color  = kit.to_faded(kit.colors.base_content, kit.LINE_OPACITY),
 	}
 
 	return ui.merge(card, changes)
@@ -132,7 +132,7 @@ build_task_card :: proc(task: ^Task) {
 
 	if ui.row("task", style) {
 		task_checkbox(task)
-		kit.text(task.title, kit.colors.dim if task.done else {})
+		kit.text(task.title, kit.to_faded(kit.colors.base_content, 0.7) if task.done else {})
 		avatar(find_member(task.assignee), 20)
 	}
 }
@@ -159,6 +159,6 @@ build_note_card :: proc(note: ^Note) {
 	if is_clicked, ok := kit.clickable("note", style); ok {
 		if is_clicked do open_note(note.id)
 		kit.text(note.title, weight = .Semibold)
-		if len(note.body) > 0 do kit.text(note.body[0], kit.colors.dim, 12)
+		if len(note.body) > 0 do kit.text(note.body[0], kit.to_faded(kit.colors.base_content, 0.7), 12)
 	}
 }

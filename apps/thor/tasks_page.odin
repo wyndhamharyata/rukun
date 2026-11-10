@@ -130,7 +130,7 @@ build_tasks_page :: proc() {
 				align   = .Center,
 				justify = .Center,
 			}
-			if ui.col("empty", empty) do kit.text("No tasks match", kit.colors.dim, width = ui.fit_text())
+			if ui.col("empty", empty) do kit.text("No tasks match", kit.to_faded(kit.colors.base_content, 0.7), width = ui.fit_text())
 			return
 		}
 
@@ -155,25 +155,25 @@ build_column_titles :: proc() {
 
 	if ui.row("columns", style) {
 		ui.box("", {width = ui.points(16)})
-		kit.text("Title", kit.colors.faint, 12, .Semibold, ui.fill(5))
-		kit.text("Space", kit.colors.faint, 12, .Semibold, ui.fill(2))
-		kit.text("Assignee", kit.colors.faint, 12, .Semibold, ui.fill(2))
-		kit.text("Due", kit.colors.faint, 12, .Semibold, ui.points(88), .End)
+		kit.text("Title", kit.to_faded(kit.colors.base_content, 0.5), 12, .Semibold, ui.fill(5))
+		kit.text("Space", kit.to_faded(kit.colors.base_content, 0.5), 12, .Semibold, ui.fill(2))
+		kit.text("Assignee", kit.to_faded(kit.colors.base_content, 0.5), 12, .Semibold, ui.fill(2))
+		kit.text("Due", kit.to_faded(kit.colors.base_content, 0.5), 12, .Semibold, ui.points(88), .End)
 	}
 }
 
 build_task_row :: proc(task: ^Task) {
 	if kit.list_row(task.id, &tasks_page.selected, {gap = 16}) {
 		task_checkbox(task)
-		kit.text(task.title, kit.colors.dim if task.done else {}, width = ui.fill(5))
-		kit.text(fmt.tprintf("#%s", task.space), kit.colors.dim, width = ui.fill(2))
+		kit.text(task.title, kit.to_faded(kit.colors.base_content, 0.7) if task.done else {}, width = ui.fill(5))
+		kit.text(fmt.tprintf("#%s", task.space), kit.to_faded(kit.colors.base_content, 0.7), width = ui.fill(2))
 
 		if ui.row("assignee", {width = ui.fill(2), align = .Center, gap = 8}) {
 			member := find_member(task.assignee)
 			avatar(member, 20)
-			kit.text(member.name, kit.colors.dim)
+			kit.text(member.name, kit.to_faded(kit.colors.base_content, 0.7))
 		}
 
-		kit.text(to_date_text(task.due), kit.colors.dim, width = ui.points(88), align = .End)
+		kit.text(to_date_text(task.due), kit.to_faded(kit.colors.base_content, 0.7), width = ui.points(88), align = .End)
 	}
 }
