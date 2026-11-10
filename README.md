@@ -12,7 +12,8 @@ Digital Entrepreneurship Product Development: spaces, tasks and notes.
 - `apps/thor/`: the thor app. `thor` is a link to `../../../thor/thor`, and `resources/` links
   the photos and avatars. Build with `odin build .` in that folder and run `./thor.bin`, or make
   `build/Rukun.app` with `./thor/bundle.sh Rukun`. `TESTAPP_PAGE=keluarga` opens a space.
-  `odin test .` there tests adding a task and sending a message.
+  `odin test . -define:ODIN_TEST_THREADS=1` there tests adding a task and sending a message (the
+  tests share the app's data, so they run one at a time).
 - `apps/web/`: the React app that Electron and Tauri share, from Vite's React template. `npm run
   build` there makes `dist/`, which both shells load. `npm run dev` serves it on port 1420.
 - `apps/electron/`: the Electron shell, from Electron Forge's base template. `npx electron-forge

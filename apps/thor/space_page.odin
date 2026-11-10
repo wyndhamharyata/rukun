@@ -40,7 +40,7 @@ build_space_page :: proc(space: ^Space) {
 		if first, last, ok := kit.list(
 			space.id,
 			len(items),
-			0,
+			kit.MEASURED,
 			changes,
 			ITEM_ESTIMATE,
 			starts_at_end = true,
@@ -166,14 +166,10 @@ build_note_card :: proc(note: ^Note) {
 			justify = .Center,
 			gap = 2,
 			padding = {12, 0, 12, 0},
-			hover_background = kit.colors.hover,
-			flags = {.Clickable},
 		},
 	)
-	card := ui.box("note", style)
-	if ui.signal(card).is_clicked do open_note(note.id)
-
-	if ui.scope(card) {
+	if is_clicked, ok := kit.clickable("note", style); ok {
+		if is_clicked do open_note(note.id)
 		kit.text(note.title, weight = .Semibold)
 		if len(note.body) > 0 do kit.text(note.body[0], kit.colors.dim, 12)
 	}
