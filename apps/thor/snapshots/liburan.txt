@@ -1,0 +1,54 @@
+window 1100×720 dark 100%
+  row "Tasks"
+  row "#acara"
+  row "#belanja"
+  row "#kebun"
+  row "#keluarga"
+  row "#kesehatan"
+  row "#keuangan"
+  row "#kucing"
+  row "#liburan" on
+  row "#mobil"
+  row "#resep"
+  row "#rumah"
+  row "#sekolah"
+  text "#liburan"
+  checkbox "done" on
+  text "obat-obatan"
+  checkbox "done" on
+  text "topi"
+  image "m2.jpg"
+  text "Raka"
+  text "29 Oct 2026, 22.14"
+  text "Aku sudah di jalan."
+  image "m1.jpg"
+  text "Nadia"
+  text "1 Nov 2026, 09.25"
+  row "note"
+    text "Rencana liburan Malang 2025"
+    text "Tahun lalu kita lupa, jadi tahun ini dicatat lebih awal. Konfirmasi lewat telepon sehari sebelumnya. Takarannya untuk enam porsi. Bahan-bahannya bisa dibeli di toko sayur."
+  image "m1.jpg"
+  text "Nadia"
+  text "2 Nov 2026, 14.40"
+  text "Bima pulang jam 14.00. Jangan lupa telepon sepupu di Bekasi."
+  image "m5.jpg"
+  text "Oma Rini"
+  text "4 Nov 2026, 14.11"
+  text "Struknya aku simpan di laci dapur. Jangan lupa bawa payung, katanya mau hujan. \U0001f697"
+  image "m5.jpg"
+  text "Oma Rini"
+  text "4 Nov 2026, 18.48"
+  text "Persiapan ulang tahun Kayla"
+  checkbox "done" on
+  text "undangan"
+  checkbox "done" on
+  text "piring kertas"
+  checkbox "done" on
+  text "kue"
+  checkbox "done" on
+  text "dekorasi"
+  checkbox "done" on
+  text "minuman"
+  checkbox "done" on
+  text "hadiah"
+  text_field "Message #liburan"

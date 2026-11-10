@@ -1,7 +1,9 @@
 package main
 
 import "base:runtime"
+import "core:strings"
 import "core:testing"
+import "thor/headless"
 import "thor/kit"
 
 @(test)
@@ -58,4 +60,36 @@ a_sent_message_goes_at_the_end_of_its_space :: proc(t: ^testing.T) {
 	testing.expect_value(t, message.text, "Mochi sudah makan.")
 	testing.expect_value(t, message.author, USER)
 	testing.expect_value(t, kit.to_field_text(&composer), "")
+}
+
+@(test)
+each_page_shows_what_it_did :: proc(t: ^testing.T) {
+	context.allocator = runtime.heap_allocator()
+	for section in ([]string{"tasks", "keluarga", "liburan"}) {
+		load_rukun()
+		state.section = section
+		headless.open(frame, {size = {1100, 720}})
+		headless.expect_tree(t, section)
+		headless.close()
+	}
+}
+
+@(test)
+a_task_typed_and_entered_shows_at_the_top :: proc(t: ^testing.T) {
+	context.allocator = runtime.heap_allocator()
+	load_rukun()
+	state.section = "tasks"
+	headless.open(frame, {size = {1100, 720}})
+	defer headless.close()
+	kit.set_field_text(&tasks_page.new_task, "")
+	count := len(rukun.tasks)
+
+	headless.click("New task #space")
+	headless.type_text("Beli galon #rumah")
+	headless.press(.Return)
+
+	testing.expect_value(t, len(rukun.tasks), count + 1)
+	testing.expect_value(t, rukun.tasks[0].title, "Beli galon")
+	testing.expect_value(t, kit.to_field_text(&tasks_page.new_task), "")
+	testing.expect(t, strings.contains(headless.tree(), "text \"Beli galon\""), "the task shows in the list")
 }
