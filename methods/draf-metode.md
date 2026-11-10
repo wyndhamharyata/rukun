@@ -96,7 +96,7 @@ ditutup.
 | CPU usage (%) | Total CPU time semua proses milik aplikasi (seperti pada memory) dibagi lama pengamatan, dalam persen satu core. Setiap proses dihitung sejak sampel pertama yang memuatnya, diambil tiap detik. Pada S2 dan S3 pengamatan dimulai saat gulir dimulai; pada S4 selama 60 detik tanpa input. | `ps`, oleh skrip harness |
 | Bundle size (MB) | Ukuran `.app` hasil release build. | `du` |
 | Clean build time (detik) | Dari source hingga `.app` release, setelah semua dependensi diunduh dan semua cache serta output build dihapus. Pada Electron termasuk build frontend React, seperti pada Tauri. | Skrip harness (`--build`) |
-| Incremental build time (detik) | Dari menyimpan perubahan satu label hingga label baru tampil, dengan siklus pengembangan bawaan tiap framework: hot reload Vite pada Electron dan Tauri, build ulang dan jalankan ulang pada GPUI dan thor. | Stopwatch dari rekaman layar |
+| Incremental build time (detik) | Dari menyimpan perubahan satu label hingga label baru tampil, dengan siklus pengembangan bawaan tiap framework: hot reload Vite pada Electron dan Tauri, `./thor/watch.sh` pada thor (build ulang dan jalankan ulang otomatis saat file disimpan, di posisi jendela terakhir), dan build ulang lalu jalankan ulang dengan `cargo run` pada GPUI. | Stopwatch dari rekaman layar |
 | Lines of code (baris) | Baris kode aplikasi uji yang ditulis peneliti, tanpa kode framework, file yang dihasilkan otomatis, dan aset. | `tokei` |
 | Setup time (menit) | Waktu dari mesin virtual macOS yang bersih hingga aplikasi uji berjalan, mengikuti panduan getting started resmi tiap framework. Waktu unduh dan instalasi termasuk. Setiap langkah dicatat. | Stopwatch dan catatan langkah |
 
