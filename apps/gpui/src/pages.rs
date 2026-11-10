@@ -82,12 +82,13 @@ fn field(state: &Entity<InputState>, width: Option<f32>, height: f32, radius: f3
         .flex()
         .items_center()
         .h(px(height))
-        .px(px(inset - 1.))
         .rounded(px(radius))
         .bg(rgba(HOVER))
         .border_1()
         .border_color(if is_focused { rgba(FOCUS) } else { rgba(0) })
-        .child(Input::new(state).appearance(false).text_size(px(13.)));
+        // Input keeps 10 points of its own on each side, even without its look. The margin puts
+        // the text inset from the box's edge, past its 1-point border.
+        .child(Input::new(state).appearance(false).text_size(px(13.)).mx(px(inset - 1. - 10.)));
 
     match width {
         Some(width) => element.w(px(width)),
