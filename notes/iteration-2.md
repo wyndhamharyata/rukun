@@ -76,6 +76,18 @@ columns, the avatar, the empty state and the spec's exact sizes.
 | 7 | Each text that wraps or sets a height needs `line_height` written on it. A theme with a type scale would set it once. | 13 |
 | 8 | The bench needs the list's box: `dev.bench_scroll(ui.find_box("list", page))`, with `page` taken from `ui.current_parent()` first. | 6 |
 
+### Fixed after this iteration (thor `cc87504`, 10 November 2026)
+
+- 2: `kit.clickable(id, style)` returns `(is_clicked, ok)` and holds its children, so the note
+  card is one `if`.
+- 3: `kit.MEASURED` names the row height of a list whose rows differ.
+- 6: a second box with an id its parent already built gets a box of its own, which keeps the
+  layout whole, and thor prints once which id repeats. Before, it took the first box and cut the
+  tree.
+- The "Window move completed without beginning" line: the event loop drops the move-end event
+  AppKit sends without a move-begin, as Tk does. Not seen in a real drag yet, as synthetic drags
+  cannot move a window without Accessibility permission.
+
 ## What worked
 
 - The measured `kit.list` showed a 4,000-item timeline at its end on the first try.
