@@ -112,7 +112,8 @@ build_tasks_page :: proc() {
 				style = NEW_TASK_STYLE,
 			)
 
-			if kit.text_field(&tasks_page.search, "search", "Search", style = SEARCH_STYLE) {
+			kit.text_field(&tasks_page.search, "search", "Search", style = SEARCH_STYLE)
+			if tasks_page.search.is_changed {
 				filter_tasks(kit.to_field_text(&tasks_page.search))
 				ui.set_scroll(ui.find_box("list", page), 0)
 			}

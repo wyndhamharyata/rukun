@@ -13,7 +13,7 @@ build_sidebar :: proc() {
 	}
 
 	if ui.scroll("sidebar", style) {
-		if kit.nav_row("tasks", "Tasks", &state.section) do state.note = ""
+		if kit.nav_row("tasks", "Tasks", &state.section).is_clicked do state.note = ""
 
 		gap(4)
 		kit.divider()
@@ -21,7 +21,7 @@ build_sidebar :: proc() {
 
 		for space in rukun.spaces {
 			label := fmt.tprintf("#%s", space.name)
-			if kit.nav_row(space.id, label, &state.section) do state.note = ""
+			if kit.nav_row(space.id, label, &state.section).is_clicked do state.note = ""
 		}
 	}
 }
