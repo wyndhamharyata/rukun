@@ -84,9 +84,10 @@ columns, the avatar, the empty state and the spec's exact sizes.
 - 6: a second box with an id its parent already built gets a box of its own, which keeps the
   layout whole, and thor prints once which id repeats. Before, it took the first box and cut the
   tree.
-- The "Window move completed without beginning" line: the event loop drops the move-end event
-  AppKit sends without a move-begin, as Tk does. Not seen in a real drag yet, as synthetic drags
-  cannot move a window without Accessibility permission.
+- The "Window move completed without beginning" line: AppKit prints it on the move-end event
+  (subtype 21) under thor's own event loop, even after the move's begin. GPUI, Tauri and Electron
+  do not print it. thor now keeps that event from AppKit (`thor` after `cc87504`). Checked with
+  real drags: the window moves, the line is gone, and clicks still work after a drag.
 
 ## What worked
 
