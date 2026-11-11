@@ -5,7 +5,7 @@ import "../ui"
 import "core:math"
 import "core:strconv"
 
-// {font size, line height} in points. Other font sizes keep the font's own line height.
+// {font size, line height} pairs in points; other sizes keep the font's own line height.
 line_heights := [][2]f32{{12, 16}, {13, 18}, {15, 20}, {28, 36}}
 
 // The line height for a font size in line_heights, or 0 for the font's own.
@@ -16,7 +16,7 @@ to_line_height :: proc(font_size: f32) -> f32 {
 	return 0
 }
 
-// A colour from 0xRRGGBBAA.
+// A color from 0xRRGGBBAA.
 to_color :: proc "contextless" (hex: u32) -> [4]f32 {
 	return {
 		f32((hex >> 24) & 0xff) / 255,
@@ -26,7 +26,7 @@ to_color :: proc "contextless" (hex: u32) -> [4]f32 {
 	}
 }
 
-// Takes #3b82f6 or 3b82f6. It returns false for any other text.
+// Parses #3b82f6 or 3b82f6, and returns false for any other text.
 to_color_from_hex :: proc(hex: string) -> (color: [4]f32, ok: bool) {
 	digits := hex[1:] if len(hex) > 0 && hex[0] == '#' else hex
 	if len(digits) != 6 do return {}, false
@@ -36,9 +36,9 @@ to_color_from_hex :: proc(hex: string) -> (color: [4]f32, ok: bool) {
 	return to_color(u32(value << 8) | 0xff), true
 }
 
-// Names from daisyUI. Each x_content is the colour of text and icons on a fill of x.
+// Names from daisyUI. Each x_content colors text and icons on a fill of x.
 Colors :: struct {
-	// base_100 is the window. base_200 and base_300 step lighter in Dark and darker in Light.
+	// base_100 is the window; base_200 and base_300 step lighter in Dark and darker in Light.
 	base_100, base_200, base_300, base_content: [4]f32,
 	primary, primary_content:                   [4]f32,
 	secondary, secondary_content:               [4]f32,
@@ -50,14 +50,14 @@ Colors :: struct {
 	error, error_content:                       [4]f32,
 	// Menus, popovers, toasts and the shadow under them. daisyUI has no names for these.
 	popover, shadow:                            [4]f32,
-	// Borders, dividers and table lines: base_content at 12%.
+	// Borders, dividers, and table lines: base_content at 12%.
 	line:                                       [4]f32,
 }
 
-// Which palette kit.colors takes. .System follows macOS, and changes with it.
+// Which palette kit.colors uses. .System follows macOS and changes with it.
 appearance: platform.Appearance
 
-// Change them in main before app.run. A zero primary takes the accent colour of System Settings.
+// Override in main before app.run. A zero primary takes the System Settings accent color.
 dark_colors := Colors {
 	base_100          = to_color(0x0e0e10ff),
 	base_200          = to_color(0x1b1b1eff),
@@ -108,7 +108,7 @@ light_colors := Colors {
 	line              = {0x1d / 255.0, 0x1d / 255.0, 0x1f / 255.0, 0.12},
 }
 
-// Components read this copy of the palette in use, with its primary set.
+// The palette in use, with its primary set. Components read this copy.
 colors := Colors{}
 
 @(init)
@@ -119,17 +119,17 @@ _start_colors :: proc "contextless" () {
 
 DEFAULT_PRIMARY :: [4]f32{0x0a / 255.0, 0x84 / 255.0, 1, 1}
 
-// Opacities of base_content for grey surfaces and lines, as daisyUI's base-content/10.
+// base_content opacities for gray surfaces and lines, like daisyUI's base-content/10.
 HOVER_OPACITY :: 0.07
 SELECTED_OPACITY :: 0.1
 TRACK_OPACITY :: 0.18
 
-// Opacities of a tone behind a Soft control, at rest, hovered and pressed.
+// Tone opacities behind a Soft control: resting, hovered, and pressed.
 SOFT_OPACITY :: 0x2e / 255.0
 _SOFT_HOVER_OPACITY :: 0x48 / 255.0
 _SOFT_PRESS_OPACITY :: 0x60 / 255.0
 
-// What a control means. Base is a plain grey control.
+// What a control means; Base is a plain gray control.
 Tone :: enum {
 	Base,
 	Primary,
@@ -151,7 +151,7 @@ Variant :: enum {
 	Ghost,
 }
 
-// The tone's colour, and the colour of text and icons on it.
+// The tone's color, and the color of text and icons on it.
 tone_colors :: proc(tone: Tone) -> (color, content: [4]f32) {
 	switch tone {
 	case .Base:
@@ -179,7 +179,7 @@ tone_colors :: proc(tone: Tone) -> (color, content: [4]f32) {
 
 _BASE_OUTLINE_OPACITY :: 0.25
 
-// hover_text is the label colour on hover, as an Outline control fills with its tone then.
+// hover_text colors the label on hover, when an Outline control fills with its tone.
 _tone_style :: proc(tone: Tone, variant: Variant) -> (style: ui.Style, hover_text: [4]f32) {
 	color, content := tone_colors(tone)
 	solid := ui.Style {
@@ -188,7 +188,7 @@ _tone_style :: proc(tone: Tone, variant: Variant) -> (style: ui.Style, hover_tex
 		press_background = _to_darker(color, _FILL_PRESS_DARKEN),
 		text_color       = content,
 	}
-	// A solid Base control is the plain grey one, not a fill of base_content.
+	// A solid Base control is the plain gray one, not a base_content fill.
 	if tone == .Base {
 		solid = {
 			background       = with_opacity(color, HOVER_OPACITY),
@@ -226,13 +226,13 @@ _tone_style :: proc(tone: Tone, variant: Variant) -> (style: ui.Style, hover_tex
 	return style, style.text_color
 }
 
-// Blends in linear light, with Ghostty's correction so text keeps its weight. Off by default: kit's
-// tints came from daisyUI, which a browser blends in gamma, so they look fainter in Light and
+// Blends in linear light with Ghostty's correction so text keeps its weight. Off by default: kit's
+// tints came from daisyUI, which browsers blend in gamma, so they look fainter in Light and
 // stronger in Dark.
 is_blending_linear: bool
 
-// A colour from Display P3 values, such as a designer picks on a Mac. On a P3 screen it can be more
-// vivid than any sRGB colour, so its channels can be below 0 or above 1.
+// A color from Display P3 values, as a designer picks on a Mac. On a P3 screen it can be more
+// vivid than any sRGB color, so channels may fall below 0 or above 1.
 to_color_from_p3 :: proc(red, green, blue: f32, alpha: f32 = 1) -> [4]f32 {
 	linear :: proc(c: f32) -> f32 {
 		a := abs(c)
@@ -245,7 +245,7 @@ to_color_from_p3 :: proc(red, green, blue: f32, alpha: f32 = 1) -> [4]f32 {
 		return v if c >= 0 else -v
 	}
 	r, g, b := linear(red), linear(green), linear(blue)
-	// Linear Display P3 to linear sRGB, both D65.
+	// Converts linear Display P3 to linear sRGB, both D65.
 	return {
 		gamma(1.2249401 * r - 0.2249404 * g),
 		gamma(-0.0420569 * r + 1.0420571 * g),
@@ -254,24 +254,24 @@ to_color_from_p3 :: proc(red, green, blue: f32, alpha: f32 = 1) -> [4]f32 {
 	}
 }
 
-// The least WCAG contrast that ui gives text and icons against the colour under them. 3 is AA for
-// large text. Increase contrast raises it to at least 4.5, AA for body text.
+// Least WCAG contrast for text and icons against the color under them. 3 is AA for large text;
+// Increase Contrast raises it to at least 4.5, AA for body text.
 min_contrast: f32 = 3
 
-// Corners and borders, with daisyUI's names. One shape serves both appearances.
+// Corner radii and borders, with daisyUI's names. One shape serves both appearances.
 Shape :: struct {
-	// Checkboxes.
+	// Corner radius for checkboxes.
 	radius_selector: f32,
-	// Buttons and text fields. Rows, menu items and icon buttons take _FIELD_INSET_RADIUS less.
+	// Buttons and text fields; rows, menu items, and icon buttons take _FIELD_INSET_RADIUS less.
 	radius_field:    f32,
-	// Popovers, menus and toasts.
+	// Popovers, menus, and toasts.
 	radius_box:      f32,
 	border:          f32,
 }
 
 _FIELD_INSET_RADIUS :: 2
 
-// fast for a hover or a knob, normal for a move, slow for a large panel.
+// fast for hovers and knobs, normal for moves, slow for large panels.
 Motions :: struct {
 	fast, normal, slow: ui.Motion,
 }
@@ -289,7 +289,7 @@ shape := Shape {
 	border          = 1,
 }
 
-// The colour with its alpha multiplied by opacity.
+// The color with its alpha scaled by opacity.
 with_opacity :: proc(color: [4]f32, opacity: f32) -> [4]f32 {
 	return {color.r, color.g, color.b, color.a * opacity}
 }
@@ -300,12 +300,12 @@ _BUTTON_HEIGHT_POINTS :: 32
 
 ICON_BUTTON_PADDING_POINTS :: 4
 
-// amount is the share of the way to black. The alpha stays the same.
+// Moves amount of the way to black; alpha stays the same.
 _to_darker :: proc(color: [4]f32, amount: f32) -> [4]f32 {
 	return {color.r * (1 - amount), color.g * (1 - amount), color.b * (1 - amount), color.a}
 }
 
-// Blends from and to: 0 gives from, and 1 gives to.
+// Blends from to to: 0 gives from, 1 gives to.
 mix_color :: proc(from, to: [4]f32, amount: f32) -> [4]f32 {
 	return from + (to - from) * amount
 }

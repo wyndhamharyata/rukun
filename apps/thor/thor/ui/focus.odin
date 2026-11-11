@@ -2,22 +2,22 @@ package ui
 
 import "../platform"
 
-// Only the keyboard moves focus, as on macOS. A click clears it, and kit gives it to a text field.
+// Like macOS, only the keyboard moves focus. A click clears it; kit hands it to text fields.
 
 FOCUS_RING_POINTS :: 2
 FOCUS_RING_GAP_POINTS :: 1
 
 
-// app sets it from the theme.
+// app sets this from the theme.
 _focus_ring_color := [4]f32{0.04, 0.52, 1, 0.54}
 
 _Focus_Stop :: struct {
 	_key:  u64,
-	// The key of the nearest box with .Arrow_Keys around it, or 0.
+	// Key of the nearest enclosing .Arrow_Keys box, or 0.
 	group: u64,
 }
 
-// Gives the box keyboard focus. nil takes focus away.
+// Moves keyboard focus to the box; nil clears it.
 focus :: proc(box: ^Box) {
 	_state.focused_key = box._key if box != nil else 0
 	_state.is_focus_moved = true
@@ -28,13 +28,13 @@ is_key_pressed :: proc(key: platform.Key) -> bool {
 	return int(key) < 128 && int(key) in _state.pressed_keys
 }
 
-// True when keyboard focus used the key this frame, so the app must skip its own use of it.
+// True when keyboard focus used this key this frame, so the app must skip its own handling.
 is_key_taken :: proc(key: platform.Key) -> bool {
 	return int(key) < 128 && int(key) in _state.taken_keys
 }
 
 _apply_focus_key :: proc(press: platform.Key_Press) {
-	// Ctrl-Tab moves focus out of a box that keeps Tab, as macOS's text views do.
+	// Ctrl-Tab moves focus out of a box that keeps Tab, as macOS text views do.
 	if press.key == .Tab && press.modifiers - {.Shift} == {.Control} {
 		_move_focus(-1 if .Shift in press.modifiers else 1)
 		_state.taken_keys += {int(press.key)}
@@ -58,7 +58,7 @@ _apply_focus_key :: proc(press: platform.Key_Press) {
 	case .Return, .Enter:
 		is_taken = _activate_focused()
 	case .Space:
-		// The app gets Space in a group such as a list, because focus shows the selected row.
+		// In a group such as a list the app gets Space, because focus already shows the selected row.
 		index, ok := _find_focused()
 		is_taken = ok && _state.focus_order[index].group == 0 && _activate_focused()
 	case .Escape:
@@ -138,7 +138,7 @@ _move_in_group :: proc(direction: int, axis: Axis) -> bool {
 
 	group := _state.boxes[_state.focus_order[index].group] or_else nil
 	if group == nil do return false
-	// A group with Auto axis lays out as a row, so Left and Right move in it.
+	// An Auto-axis group lays out as a row, so Left and Right move within it.
 	group_axis := Axis.Y if group.style.axis == .Y else Axis.X
 	if group_axis != axis do return false
 
@@ -153,7 +153,7 @@ _move_in_group :: proc(direction: int, axis: Axis) -> bool {
 	return true
 }
 
-// After layout, it reads the next frame's Tab order and scrolls the focused box into view.
+// After layout, rebuilds the Tab order and scrolls the focused box into view.
 _finish_focus :: proc() {
 	clear(&_state.focus_order)
 	modal := _find_modal()
@@ -181,7 +181,7 @@ _read_focus_order :: proc(box: ^Box, group: u64) {
 
 	if is_focusable {
 		append(&_state.focus_order, _Focus_Stop{box._key, inner_group})
-		// In a group, the arrows move between its controls, not into the controls inside them.
+		// Inside a group, arrows move between its controls, never into the controls within them.
 		if inner_group != 0 do return
 	}
 

@@ -5,7 +5,7 @@ import "../platform"
 import "../render"
 import "core:math"
 
-// Blends in premultiplied colour, so a fade to a translucent colour gets no brighter or darker.
+// Blends premultiplied colors so fading to a translucent color never brightens or darkens.
 _mix :: proc(a, b: [4]f32, fraction: f32) -> [4]f32 {
 	if b.a == 0 do return a
 
@@ -23,7 +23,7 @@ _Ghost :: struct {
 	drawn_frame: int,
 }
 
-// under is the colour under the box, which its text must read against.
+// under is the color behind the box, which its text must read against.
 _draw :: proc(box: ^Box, clip: [4]f32, parent_opacity: f32, under: [4]f32) {
 	if .Fade_Out not_in box.style.flags || box._key == 0 {
 		_draw_box(box, clip, parent_opacity, under)
@@ -40,7 +40,7 @@ _draw :: proc(box: ^Box, clip: [4]f32, parent_opacity: f32, under: [4]f32) {
 	ghost.drawn_frame = _state.frame_index
 }
 
-// shortcut: a copy can outlive an image texture that the image cache frees while it fades. Keep
+// shortcut: a fading copy can outlive its image texture after the image cache frees it. Keep
 // the texture alive in the copy if that shows.
 _draw_ghosts :: proc() {
 	gone := make([dynamic]u64, context.temp_allocator)
@@ -66,8 +66,8 @@ _draw_ghosts :: proc() {
 	}
 }
 
-// A glass box erases what is under it, so the window's glass shows, and its background tints the
-// glass. With no glass shown, it paints its tint, or the window's colour, opaque.
+// A glass box clears what is under it so the window's glass shows through, tinted by its background.
+// With no glass to show, it paints its tint, or the window color, opaque.
 _apply_glass :: proc(box: ^Box, background: [4]f32, rect, rect_pixels, clip_pixels: [4]f32) -> (paint, under: [4]f32) {
 	if !_is_glass_shown {
 		paint = background if background.a > 0 else _glass_fallback
@@ -135,8 +135,8 @@ _draw_box :: proc(box: ^Box, clip: [4]f32, parent_opacity: f32, under: [4]f32) {
 
 	child_clip := _intersect(clip, rect) if .Clip in style.flags else clip
 
-	// A floating child with a background, such as a segmented control's pill, is the colour under
-	// the later children whose middle it covers.
+	// A floating, filled child (like a segmented control's pill) becomes the color under
+	// any later child whose middle it covers.
 	covers: [8]struct {
 		rect:  [4]f32,
 		color: [4]f32,
@@ -156,11 +156,11 @@ _draw_box :: proc(box: ^Box, clip: [4]f32, parent_opacity: f32, under: [4]f32) {
 		}
 	}
 
-	// Forced focus reaches the boxes inside a component. Only the box that takes focus shows it.
+	// Forced focus reaches inside components, but only the box holding focus draws the ring.
 	is_forced_focus := box.forced == .Focus && .Clickable in style.flags
 	is_focused := is_forced_focus || (box.forced == .None && box._key != 0 && box._key == _state.focused_key)
 	if is_focused && .No_Focus_Ring not_in style.flags {
-		// In a tight group, such as list rows or a segmented control, the ring goes inside the box.
+		// In tight groups like list rows or segmented controls, the ring draws inside the box.
 		is_tight := false
 		for group := box.parent; group != nil; group = group.parent {
 			if .Arrow_Keys not_in group.style.flags do continue
@@ -181,7 +181,7 @@ _draw_box :: proc(box: ^Box, clip: [4]f32, parent_opacity: f32, under: [4]f32) {
 	}
 }
 
-// Whole pixels keep edges sharp at any zoom. A box keeps at least one pixel, so a hairline shows.
+// Whole pixels keep edges sharp at any zoom, and a box keeps at least one pixel so a hairline shows.
 _to_whole_pixels :: proc(rect: [4]f32) -> [4]f32 {
 	whole := [4]f32{math.round(rect.x), math.round(rect.y), math.round(rect.z), math.round(rect.w)}
 	if rect.z > rect.x && whole.z <= whole.x do whole.z = whole.x + 1
@@ -190,7 +190,7 @@ _to_whole_pixels :: proc(rect: [4]f32) -> [4]f32 {
 	return whole
 }
 
-// A border is whole pixels, at least one, as in CSS.
+// Borders are whole pixels, at least one, as in CSS.
 _to_border_pixels :: proc(points, pixels_per_point: f32) -> f32 {
 	if points <= 0 do return 0
 

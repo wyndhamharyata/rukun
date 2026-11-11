@@ -249,7 +249,7 @@ _resolve_children :: proc(box: ^Box, inner: [2]f32) {
 		sizes := [2]Size{child.style.width, child.style.height}
 		count += 1
 
-		// A parent that fits its children has no space left for a fill child.
+		// A parent that fits its children leaves no space for a fill child.
 		box_sizes := [2]Size{box.style.width, box.style.height}
 		is_fit := _is_children_size(box, box_sizes[main]) && box.style.min_size[main] == 0
 		if is_fit && sizes[main].kind == .Fill {
@@ -283,7 +283,7 @@ _resolve_children :: proc(box: ^Box, inner: [2]f32) {
 			.Floating not_in child.style.flags && sizes[main].kind == .Fill && fill_weight > 0
 		is_fitted_text := .Wrap_Text in child.style.flags || .Truncate_Text in child.style.flags
 
-		// shortcut: max_size leaves part of a fill child's share unused. Give it to the others if needed.
+		// shortcut: max_size can leave part of a fill child's share unused. Give it to the others if needed.
 		if is_fill {
 			share := math.floor(leftover * sizes[main].value / fill_weight)
 			child.size[main] = _clamp_size(child.style, _to_axis(main), share)
@@ -296,7 +296,7 @@ _resolve_children :: proc(box: ^Box, inner: [2]f32) {
 		}
 	}
 
-	// .Clip without .Scroll cuts the children on purpose. .Scroll holds them on its main axis only.
+	// .Clip alone cuts children on purpose; .Scroll holds them on its main axis only.
 	is_held := (.Clip in box.style.flags && .Scroll not_in box.style.flags) || _is_wrapping(box)
 	// A box that fits its children grows to them after this.
 	excess := extent - inner
@@ -304,7 +304,7 @@ _resolve_children :: proc(box: ^Box, inner: [2]f32) {
 	if _is_children_size(box, box.style.width) do excess.x = 0
 	if _is_children_size(box, box.style.height) do excess.y = 0
 	overflow := max(excess.x, excess.y)
-	// A layout that asked for another frame, as a list measuring its rows does, is not settled yet.
+	// A layout that asked for another frame, as a list measuring rows does, is not settled yet.
 	if !is_held && count > 0 && overflow >= 1 && !_state.is_frame_requested {
 		_warn(
 			box,

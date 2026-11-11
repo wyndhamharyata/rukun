@@ -8,12 +8,12 @@ import "core:math"
 import "core:time"
 
 _SPINNER_SPOKES :: 8
-// Steps of the lit spoke per second: one turn takes 0.8 seconds.
+// Lit-spoke steps per second; one turn takes 0.8 seconds.
 _SPINNER_STEPS_PER_SECOND :: 10
 
 _BADGE_HEIGHT_POINTS :: 18
 
-// A filled track that shows ratio, from 0 to 1.
+// A filled track showing ratio from 0 to 1.
 progress :: proc(ratio: f32, tone := Tone.Primary, width := ui.Size{.Fill, 1}) -> ui.Signal {
 	shown := clamp(ratio, 0, 1)
 	color, _ := tone_colors(tone)
@@ -58,7 +58,7 @@ _draw_spinner :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 	reach := size / 2 - length / 2
 
 	for spoke in 0 ..< _SPINNER_SPOKES {
-		// From the top, clockwise, as the lit spoke moves.
+		// Angles run clockwise from the top, following the lit spoke.
 		angle := f32(spoke) * 2 * math.PI / _SPINNER_SPOKES - math.PI / 2
 		age := (paint.lead - spoke + _SPINNER_SPOKES) % _SPINNER_SPOKES
 		alpha := 1 - f32(age) * 0.75 / (_SPINNER_SPOKES - 1)
@@ -68,7 +68,7 @@ _draw_spinner :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 	}
 }
 
-// A short label in a pill: a count, a state, "New".
+// A short label in a pill: a count, a state, or "New".
 badge :: proc(label: string, tone := Tone.Base, variant := Variant.Soft) -> ui.Signal {
 	look, _ := _tone_style(tone, variant)
 	look.width = ui.fit_text()

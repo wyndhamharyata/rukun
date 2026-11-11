@@ -3,8 +3,8 @@ package kit
 import "../font"
 import "../ui"
 
-// Truncates, or wraps at width with is_wrapped. A zero color takes the theme's text colour.
-// A zero line_height takes the line height for font_size from line_heights.
+// Truncates, or wraps at its width with is_wrapped. A zero color takes the theme's text color.
+// A zero line_height takes the line height paired with font_size.
 text :: proc(
 	value: string,
 	color: [4]f32 = {},

@@ -8,7 +8,7 @@ Button_Size :: enum {
 	Large,
 }
 
-// Press goes one step past hover. A colour fill darkens; a grey fill moves towards the text colour.
+// Press darkens one step past hover; a gray fill moves toward the text color instead.
 _FILL_HOVER_DARKEN :: 0.15
 _FILL_PRESS_DARKEN :: 0.3
 
@@ -27,8 +27,8 @@ _button_metrics := [Button_Size]_Button_Metrics {
 	.Large  = {40, 15, 14, 20},
 }
 
-// icon is an SF Symbol name. With no label, the button is a square and Auto means Ghost, not Solid.
-// A zero icon_color takes the label's colour. A disabled button fades and takes no clicks.
+// icon is an SF Symbol name. Without a label, the button is square and Auto uses Ghost style.
+// A zero icon_color uses the label color. Disabled buttons fade and ignore clicks.
 button :: proc(
 	id: string,
 	label := "",

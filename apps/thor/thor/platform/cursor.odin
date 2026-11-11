@@ -2,7 +2,7 @@ package platform
 
 import NS "core:sys/darwin/Foundation"
 
-// Auto, the zero value, takes the parent box's.
+// Auto, the zero value, inherits the parent box's cursor.
 Cursor :: enum {
 	Auto,
 	Arrow,

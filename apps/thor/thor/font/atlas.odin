@@ -38,7 +38,7 @@ draw :: proc(
 	color_of: Color_Proc,
 	data: rawptr,
 	opacity: f32,
-	// The colour under the text, for linear blending's weight correction.
+	// The color under the text, for linear blending's weight correction.
 	under: [4]f32 = {},
 ) {
 	for line in shaped.lines {
@@ -53,7 +53,7 @@ draw :: proc(
 			pen_x := origin_pixels.x + glyph.x_pixels
 			whole_x := math.floor(pen_x)
 			is_color := _state.is_color_font[glyph.font_index]
-			// A colour glyph is a picture, so it stays on whole pixels.
+			// A color glyph is a picture, so it sits on whole pixels.
 			subpixel := 0 if is_color else int((pen_x - whole_x) * _SUBPIXEL_STEPS)
 			atlas := &_state.color_atlas if is_color else &_state.atlas
 			entry := _find_glyph(atlas, glyph.font_index, glyph.glyph, subpixel, is_color)
@@ -155,7 +155,7 @@ _rasterize :: proc(
 	space :=
 		mac.CGColorSpaceCreateWithName(mac.kCGColorSpaceSRGB) if is_color else mac.CGColorSpaceCreateDeviceGray()
 	defer mac.CGColorSpaceRelease(space)
-	// BGRA with premultiplied alpha, as image's textures hold.
+	// BGRA with premultiplied alpha, matching image textures.
 	color_info := u32(mac.IMAGE_ALPHA_PREMULTIPLIED_FIRST | mac.BITMAP_BYTE_ORDER_32_LITTLE)
 	bitmap_context := mac.CGBitmapContextCreate(
 		raw_data(pixels),
@@ -179,7 +179,7 @@ _rasterize :: proc(
 	mac.CTFontDrawGlyphs(ct_font, &glyph, &position, 1, bitmap_context)
 	render.upload_texture(atlas.texture, region, raw_data(pixels), bytes_per_row)
 
-	// CoreGraphics counts y up from the bottom of the bitmap. The screen counts down from the top.
+	// CoreGraphics counts y up from the bitmap's bottom; the screen counts down from the top.
 	return _Atlas_Entry{region, {f32(left), -f32(height + bottom)}}
 }
 

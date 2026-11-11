@@ -1,6 +1,6 @@
 package platform
 
-// macOS's key code plus one, on a US layout, so 0 is None. Unnamed keys still arrive: to_key(105).
+// macOS key code plus one on a US layout, so 0 is None. Unnamed keys still arrive; see to_key(105).
 Key :: enum u16 {
 	None           = 0,
 	A              = 1,
@@ -71,7 +71,7 @@ to_key :: proc "contextless" (code: u16) -> Key {
 	return Key(code + 1)
 }
 
-// The text a key types with no modifier, or with Shift. Empty for a key that types none.
+// The text a key types with no modifier or with Shift; empty for a key that types no text.
 to_key_text :: proc(key: Key, is_shifted: bool) -> string {
 	#partial switch key {
 	case .Return, .Enter:

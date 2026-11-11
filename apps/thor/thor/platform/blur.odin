@@ -18,7 +18,7 @@ Blur_View :: struct {
 	using _: Visual_Effect_View,
 }
 
-// The colour behind what the current window draws. Glass hides it while the glass is open.
+// The color behind the current window's drawing; glass covers it while open.
 set_background :: proc(color: [4]f32) {
 	if _headless.is_on do return
 
@@ -34,7 +34,7 @@ _Objc_Super :: struct {
 	super_class: NS.Class,
 }
 
-// AppKit puts back its tint and saturation layers each time it updates the blur.
+// AppKit puts its tint and saturation layers back each time it updates the blur.
 @(objc_type = Blur_View, objc_implement, objc_name = "updateLayer")
 Blur_View_updateLayer :: proc "c" (self: ^Blur_View) {
 	super := _Objc_Super{self, NS.Class(intrinsics.objc_find_class("NSVisualEffectView"))}
@@ -52,7 +52,7 @@ _remove_layer_background :: proc "c" (layer: ^Layer) {
 
 	class_name := objc_send(^NS.String, layer, "className")
 
-	// CAChameleonLayer tints the blur with the desktop colour.
+	// CAChameleonLayer tints the blur with the desktop color.
 	if objc_send(NS.BOOL, class_name, "isEqualToString:", NS.AT("CAChameleonLayer")) {
 		objc_send(nil, layer, "setHidden:", NS.BOOL(true))
 		return
@@ -67,7 +67,7 @@ _remove_layer_background :: proc "c" (layer: ^Layer) {
 			filter := filters->object(index)
 			description := objc_send(^NS.String, filter, "description")
 
-			// The blur raises saturation with a filter named "colorSaturate".
+			// The blur boosts saturation through a filter named "colorSaturate".
 			if objc_send(NS.BOOL, description, "containsString:", NS.AT("colorSaturate")) do continue
 
 			objc_send(nil, kept, "addObject:", filter)

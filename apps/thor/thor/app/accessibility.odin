@@ -7,12 +7,12 @@ _update_accessibility :: proc() {
 	platform.update_accessibility(native_window, _to_accessibility_nodes(), ui._state.focused_key)
 }
 
-// The current window's elements as VoiceOver reads them, in the temp allocator.
+// The elements VoiceOver reads for this window, in the temp allocator.
 _to_accessibility_nodes :: proc() -> []platform.Accessibility_Node {
 	found := make([dynamic]ui.Accessible, context.temp_allocator)
 	ui._list_accessible({ui._state.root, ui._state.overlay_root}, &found)
 	nodes := make([]platform.Accessibility_Node, len(found), context.temp_allocator)
-	// The node of each depth above the current one, and how many children each node has so far.
+	// The node index at each ancestor depth, and each node's child count so far.
 	path := make([dynamic]int, context.temp_allocator)
 	child_counts := make([]u64, len(found) + 1, context.temp_allocator)
 

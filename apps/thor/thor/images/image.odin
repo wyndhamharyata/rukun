@@ -53,10 +53,10 @@ Color :: struct {
 	vividness: f32,
 }
 
-// Runs on a worker thread. Returns the path of a file that holds the image at the URL.
+// Runs on a worker thread and returns the path of a file that holds the image at the URL.
 Fetch_Proc :: #type proc(url: string) -> (path: string, ok: bool)
 
-// Returns the part of a URL that names the image at any size. A loaded size can replace another.
+// Returns the part of a URL that names the image at any size, so one loaded size can replace another.
 Family_Proc :: #type proc(url: string) -> string
 
 _Job :: struct {

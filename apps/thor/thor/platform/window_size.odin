@@ -3,7 +3,7 @@ package platform
 import NS "core:sys/darwin/Foundation"
 
 read_screen_size_points :: proc() -> [2]f32 {
-	// With no screen, nothing limits the zoom.
+	// With no screen, the zoom has no limit.
 	if _headless.is_on do return {1e5, 1e5}
 
 	visible := _read_visible_frame()
@@ -48,7 +48,7 @@ set_min_size :: proc(min_size_points: [2]f32) {
 	)
 }
 
-// The visible frame of the current window's screen, else of the main screen.
+// The visible frame of the current window's screen, else the main screen's.
 _read_visible_frame :: proc() -> NS.Rect {
 	window := current_window()
 	screen: ^NS.Screen

@@ -4,11 +4,11 @@ import "../platform"
 import "core:strings"
 import "core:time"
 
-// A run of typing, or of deleting backwards, within this long is one undo.
+// Typing or backward deletes within this many seconds merge into one undo.
 _HISTORY_MERGE_SECONDS :: 1
 _HISTORY_LIMIT :: 500
 
-// At at, inserted replaces removed. before and after are the selection as {anchor, caret}.
+// At byte at, inserted replaces removed. before and after are the selection as {anchor, caret}.
 _Edit :: struct {
 	at:        int,
 	removed:   string,
@@ -19,12 +19,12 @@ _Edit :: struct {
 	time:      time.Tick,
 }
 
-// What ⌘Z undoes and ⇧⌘Z redoes, for a text field or an editor.
+// What ⌘Z undoes and ⇧⌘Z redoes in a text field or editor.
 _History :: struct {
 	undo, redo: [dynamic]_Edit,
 }
 
-// Keeps the change to undo, joining a run of typing or deleting backwards. Returns the new caret.
+// Records the change for undo, merging runs of typing or backward deletes. Returns the new caret.
 _replace_text :: proc(
 	history: ^_History,
 	text: ^[dynamic]u8,
@@ -75,7 +75,7 @@ _replace_text :: proc(
 	return caret
 }
 
-// Returns the selection from before the change, or false with nothing to undo.
+// Undoes one step and returns the selection from before it, or false with nothing to undo.
 _undo :: proc(history: ^_History, text: ^[dynamic]u8) -> (selection: [2]int, ok: bool) {
 	edit := pop_safe(&history.undo) or_return
 	remove_range(text, edit.at, edit.at + len(edit.inserted))
@@ -85,7 +85,7 @@ _undo :: proc(history: ^_History, text: ^[dynamic]u8) -> (selection: [2]int, ok:
 	return edit.before, true
 }
 
-// Returns the selection from after the change.
+// Redoes one step and returns the selection from after it.
 _redo :: proc(history: ^_History, text: ^[dynamic]u8) -> (selection: [2]int, ok: bool) {
 	edit := pop_safe(&history.redo) or_return
 	remove_range(text, edit.at, edit.at + len(edit.removed))

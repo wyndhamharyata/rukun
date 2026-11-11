@@ -15,21 +15,21 @@ Date :: struct {
 }
 
 _Calendars :: struct {
-	// The month each calendar shows, by its box's key, as its first day.
+	// The month each calendar shows, by its box key, as that month's first day.
 	months:    map[u64]Date,
 	// The calendar with this key gives keyboard focus to focus_day as kit builds the day.
 	focus_key: u64,
 	focus_day: Date,
 }
 
-// Today, in the person's time zone.
+// Today's date in the person's time zone.
 today :: proc() -> Date {
 	day := platform.read_today()
 
 	return {day[0], day[1], day[2]}
 }
 
-// The date days later, or earlier when days is negative.
+// The date this many days later, or earlier for a negative count.
 add_days :: proc(date: Date, days: int) -> Date {
 	moment, _ := time.components_to_time(date.year, date.month, date.day, 12, 0, 0)
 	year, month, day := time.date(time.time_add(moment, time.Duration(days) * 24 * time.Hour))
@@ -45,7 +45,7 @@ add_months :: proc(date: Date, months: int) -> Date {
 	return {year, month, min(date.day, days_in_month(year, month))}
 }
 
-// The number of days in the month, with leap years.
+// The number of days in the month, accounting for leap years.
 days_in_month :: proc(year, month: int) -> int {
 	switch month {
 	case 2:
@@ -66,7 +66,7 @@ format_day :: proc(date: Date, template: string) -> string {
 	return platform.format_date(f64(time.to_unix_nanoseconds(moment)) / 1e6, template)
 }
 
-// 1 for Sunday to 7 for Saturday.
+// 1 for Sunday through 7 for Saturday.
 _to_weekday :: proc(date: Date) -> int {
 	moment, _ := time.components_to_time(date.year, date.month, date.day, 12, 0, 0)
 
@@ -128,7 +128,7 @@ calendar :: proc(id: string, date: ^Date) -> ui.Signal {
 	return signal
 }
 
-// is_picked is true on a click. moved is the day a key moves focus to, else zero.
+// is_picked is set on click; moved is the day a key moves focus to, else the zero date.
 _build_day :: proc(calendar_box: ^ui.Box, day, picked, shown, today_date: Date) -> (is_picked: bool, moved: Date) {
 	is_on := day == picked
 	is_in_month := day.month == shown.month
@@ -183,7 +183,7 @@ _build_day :: proc(calendar_box: ^ui.Box, day, picked, shown, today_date: Date) 
 	return signal.is_activated, moved
 }
 
-// Shows date^ in the person's short format, or placeholder. Picking a day closes the calendar.
+// Shows date^ in the person's short format, or the placeholder. Picking a day closes the calendar.
 date_picker :: proc(id: string, date: ^Date, placeholder := "No date") -> ui.Signal {
 	look, _ := _tone_style(.Base, .Solid)
 	look.width = ui.fit_children()
@@ -211,7 +211,7 @@ date_picker :: proc(id: string, date: ^Date, placeholder := "No date") -> ui.Sig
 	is_changed := false
 	if popover(fmt.tprintf("%s_calendar", id), &is_open, box) {
 		if ui.col("padding", {padding = 6}) {
-			// When the keyboard opens it, focus goes to the picked day, or today.
+			// When the keyboard opens it, focus lands on the picked day, or today.
 			if _window.popover.is_focusing_first {
 				_window.popover.is_focusing_first = false
 				_window.calendars.focus_key = ui._to_key("calendar", ui.current_parent()._seed)

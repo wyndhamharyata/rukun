@@ -30,14 +30,14 @@ is_outlining: bool
 _inspector: struct {
 	// read_inspector_tree copies each box's strings and frees them when it reads the next tree.
 	boxes:    [dynamic]_Inspected,
-	// The path of the box that the person selected in the list. It outlives the frame.
+	// The selected box's path in the list; it outlives the frame.
 	selected: string,
 	hovered:  int,
 	// The inspector panel's rect last frame. The pointer in it points at the panel, not the app.
 	panel:    [4]f32,
 }
 
-// Call with each frame's events, before the app builds its boxes.
+// Call it with each frame's events, before the app builds its boxes.
 apply_inspector_keys :: proc(events: []platform.Event) {
 	for event in events {
 		press := event.(platform.Key_Press) or_continue
@@ -53,7 +53,7 @@ apply_inspector_keys :: proc(events: []platform.Event) {
 	}
 }
 
-// Call it after the app builds its boxes, at the root.
+// Call it at the root, after the app builds its boxes.
 build_inspector :: proc() {
 	if !is_inspecting do return
 

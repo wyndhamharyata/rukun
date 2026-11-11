@@ -2,15 +2,15 @@ package ui
 
 import "core:math"
 
-// app sets it each frame: kit.min_contrast, or at least 4.5 with Increase contrast.
+// app sets this each frame: kit.min_contrast, or at least 4.5 with Increase contrast.
 _min_contrast: f32 = 3
-// The colour under the box being drawn, for the draw procedures that colour icons.
+// The color behind the box being drawn, for draw procs that tint icons.
 _drawing_under: [4]f32
-// app sets them each frame. No glass shows with no screen or with Reduce transparency.
+// app sets these each frame. No glass shows with no screen or with Reduce transparency.
 _is_glass_shown: bool
 _glass_fallback: [4]f32
 
-// The colour as the person sees it on under.
+// What top looks like once laid over under.
 _lay_over :: proc(top, under: [4]f32) -> [4]f32 {
 	if under.a == 0 do return top
 
@@ -29,16 +29,16 @@ _to_luminance :: proc(color: [4]f32) -> f32 {
 	return 0.2126 * linear(color.r) + 0.7152 * linear(color.g) + 0.0722 * linear(color.b)
 }
 
-// WCAG's contrast ratio between two colours, from 1 to 21. It ignores alpha.
+// WCAG contrast ratio of two colors, 1 to 21; ignores alpha.
 _to_contrast_ratio :: proc(first, second: [4]f32) -> f32 {
 	a, b := _to_luminance(first), _to_luminance(second)
 
 	return (max(a, b) + 0.05) / (min(a, b) + 0.05)
 }
 
-// A colour that reads too faintly on under stays lighter or darker than under, and moves by the
-// smallest step that meets minimum, so its hue stays. When its side cannot reach minimum, it turns
-// black or white: a step across would give a muddy grey.
+// Nudges a faint color lighter or darker than under by the smallest step that meets minimum,
+// keeping its hue. When its own side can't reach minimum, it flips to black or white:
+// stepping across would land on muddy gray.
 _to_readable :: proc(color, under: [4]f32, minimum: f32) -> [4]f32 {
 	if under.a < 0.5 || color.a == 0 do return color
 

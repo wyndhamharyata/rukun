@@ -9,7 +9,7 @@ import "core:unicode/utf8"
 _PALETTE_WIDTH_POINTS :: 560
 _PALETTE_ROW_POINTS :: 32
 _PALETTE_SHOWN_ROWS :: 8
-// The palette's top, as a share of the window's height.
+// The palette's top edge as a share of the window's height.
 _PALETTE_TOP_SHARE :: 0.18
 
 _Palette :: struct {
@@ -17,7 +17,7 @@ _Palette :: struct {
 	highlighted: int,
 }
 
-// The combobox whose menu is open, by its field's key.
+// The combobox with its menu open, by its field's key.
 _Search :: struct {
 	_key:        u64,
 	highlighted: int,
@@ -74,7 +74,7 @@ _rank :: proc(texts: []string, typed: string) -> []int {
 	return ranked
 }
 
-// Returns the id of the option the person runs, on that frame. Disabled options do not show.
+// Returns the id of the option the person runs this frame; disabled options never show.
 command_palette :: proc(
 	id: string,
 	is_open: ^bool,
@@ -87,7 +87,7 @@ command_palette :: proc(
 	state := &_window.palette
 	field := &state.input
 	if is_open^ {
-		// A press outside the palette closes it, as one outside a popover does.
+		// A press outside the palette closes it, as a press outside a popover does.
 		last := ui.find_box(id, ui._state.overlay_root)
 		panel := ui.find_box("panel", last) if last != nil else nil
 		press, is_pressed := ui._pressed_at()
@@ -183,7 +183,7 @@ _scroll_to_row :: proc(list: ^ui.Box, index: int) {
 	if row_bottom > list.scroll + height do ui.set_scroll(list, row_bottom - height)
 }
 
-// input holds the typed text. Without the keyboard, the field shows the label of selected^.
+// input holds the typed text. Unfocused, the field shows selected^'s label.
 combobox :: proc(
 	id: string,
 	selected: ^string,
@@ -210,14 +210,14 @@ combobox :: proc(
 	typed := to_input_text(field)
 	labels := make([]string, len(options), context.temp_allocator)
 	for option, index in options do labels[index] = option.label
-	// While the field shows the selected label, list every option, as a menu does.
+	// While the field shows the selected label, list every option like a menu.
 	ranked := _rank(labels, "" if typed == selected_label else typed)
 	is_changed := false
 	if state._key == box._key && len(ranked) > 0 {
 		state.highlighted = clamp(state.highlighted + field.step, 0, len(ranked) - 1)
 		is_open := true
 		if popover(fmt.tprintf("%s_options", id), &is_open, box) {
-			// The field keeps the keyboard.
+			// Keeps the keyboard in the field, not the popover.
 			_window.popover.is_focusing_first = false
 			for index, place in ranked {
 				option := options[index]

@@ -18,11 +18,11 @@ struct Instance {
     float4 under_color;
 };
 
-// What the target stores: linear light or gamma, and sRGB or Display P3.
+// What the target holds: linear or gamma, sRGB or Display P3.
 constant uint color_linear = 1;
 constant uint color_p3 = 2;
 
-// The sRGB curve, kept odd so a P3 colour outside sRGB, which has a negative channel, survives.
+// The sRGB curve, kept odd so a P3 color outside sRGB, with a negative channel, survives.
 float3 to_linear(float3 c) {
     float3 a = abs(c);
     return sign(c) * select(pow((a + 0.055) / 1.055, 2.4), a / 12.92, a <= 0.04045);
@@ -36,7 +36,7 @@ float3 to_gamma(float3 c) {
 float to_linear(float c) { return to_linear(float3(c)).x; }
 float to_gamma(float c) { return to_gamma(float3(c)).x; }
 
-// Linear sRGB to linear Display P3, both D65. Display P3 has the sRGB curve.
+// Linear sRGB to linear Display P3, both D65. Display P3 uses the sRGB curve.
 constant float3x3 srgb_to_p3 = float3x3(
     float3(0.8224621, 0.0331941, 0.0170827),
     float3(0.1775380, 0.9668058, 0.0723974),
@@ -99,7 +99,7 @@ vertex Fragment vertex_main(
     float padding = instance.kind == kind_glyph ? 0.0 : instance.softness + 1.0;
     float2 point = mix(instance.rect.xy - padding, instance.rect.zw + padding, corner);
     float2 along = (point - instance.rect.xy) / (instance.rect.zw - instance.rect.xy);
-    // A turned rect's corners turn with it; the fragment turns its point back.
+    // A turned rect's corners turn with it, so the fragment turns its point back.
     if (instance.rotation != 0.0) point = to_turned(point, (instance.rect.xy + instance.rect.zw) * 0.5, instance.rotation);
 
     Fragment output;
@@ -110,7 +110,7 @@ vertex Fragment vertex_main(
     return output;
 }
 
-// Inigo Quilez's signed distance to a rounded box.
+// Inigo Quilez's signed distance function for a rounded box.
 float to_box_distance(float2 point, float2 half_size, float radius) {
     float2 q = abs(point) - half_size + radius;
     return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - radius;
@@ -171,7 +171,7 @@ fragment float4 fragment_main(
         color = mix(color, to_target(instance.end_color, flags), to_gradient_step(instance, point));
     }
 
-    // Premultiplied, and the border over the fill: a translucent border tints the fill beneath it,
+    // Premultiplied, with the border over the fill: a translucent border tints the fill below it,
     // and its anti-aliased edge blends without a lighter or darker fringe.
     float4 fill = float4(color.rgb * color.a, color.a);
 

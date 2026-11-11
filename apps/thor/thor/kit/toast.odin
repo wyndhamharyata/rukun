@@ -21,7 +21,7 @@ _Toast :: struct {
 	shown_at: time.Tick,
 }
 
-// A tone other than Base colours the edge, and Info, Success, Warning and Error add their icon.
+// A non-Base tone colors the edge; Info, Success, Warning, and Error also add their icon.
 show_toast :: proc(text: string, tone := Tone.Base) {
 	delete(_window.toast.text)
 	_window.toast.text = strings.clone(text)
@@ -41,7 +41,7 @@ _TOAST_ICONS := [Tone]string {
 	.Error     = "xmark.octagon.fill",
 }
 
-// Shows the toast from show_toast. Call it last in each window's frame.
+// Shows the toast from show_toast; call it last in each window's frame.
 build_toast :: proc(bottom_margin_points: f32 = 0) {
 	if _window.toast.text == "" do return
 

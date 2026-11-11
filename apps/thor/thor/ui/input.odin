@@ -31,7 +31,7 @@ Interaction :: struct {
 	// Where and when the press began, in points.
 	start:           [2]f32,
 	started_at:      time.Tick,
-	// 1, 2 or 3 for a single, double or triple press.
+	// 1, 2, or 3 for a single, double, or triple press.
 	count:           int,
 	is_long_pressed: bool,
 	is_dragged:      bool,
@@ -40,27 +40,27 @@ Interaction :: struct {
 
 // Controls and displays return one. Unused fields stay zero. Never name a field after a mouse.
 Signal :: struct {
-	// The element, for a popover's anchor, a test's target or its rect.
+	// The box itself: a popover's anchor, a test's target, or its rect.
 	box:             ^Box,
-	// A pointer or a pen over it or anything in it; a finger never hovers.
+	// Pointer or pen over it or inside it; a finger never hovers.
 	is_hovered:      bool,
-	// The person presses on it and does not release.
+	// Pressed and not yet released.
 	is_held:         bool,
 	is_focused:      bool,
-	// Its action happened: a click, a tap, or Return or Space with focus, on the frame it ends.
+	// Its action fired this frame: a click, tap, or Return/Space while focused.
 	is_activated:    bool,
-	// 1, 2 or 3 on that frame, for a single, double or triple click or tap; 0 from the keyboard.
+	// 1, 2, or 3 for a single, double, or triple click or tap; 0 when fired from the keyboard.
 	count:           int,
 	// A right click, Control-click, two-finger click or touch long press, for a context menu.
 	is_secondary:    bool,
-	// Held still for LONG_PRESS_SECONDS, on the frame it passes them.
+	// Held still for LONG_PRESS_SECONDS, true on the frame it passes that mark.
 	is_long_pressed: bool,
-	// Held and moved past DRAG_THRESHOLD_POINTS, and how far from where the press began, in points.
+	// Held and moved past DRAG_THRESHOLD_POINTS, with the distance from the press start in points.
 	is_dragged:      bool,
 	drag:            [2]f32,
-	// The value that the component edits changed this frame. The component sets it, never ui.
+	// The edited value changed this frame; the component sets it, never ui.
 	is_changed:      bool,
-	// The device of this frame's interaction with it.
+	// The device behind this frame's interaction with it.
 	device:          Device,
 }
 
@@ -93,7 +93,7 @@ _apply_events :: proc(events: []platform.Event) {
 				count      = event.click_count,
 				_key       = _state.hot_key,
 			}
-			// A frame for the moment the press becomes a long press.
+			// Ask for a frame at the moment the press becomes a long press.
 			if _state.hot_key != 0 do platform.request_frame_after(LONG_PRESS_SECONDS)
 		case platform.Mouse_Release:
 			if _state.is_secondary_press {
@@ -117,11 +117,11 @@ _apply_events :: proc(events: []platform.Event) {
 			if int(event.key) < 128 do _state.pressed_keys += {int(event.key)}
 			_apply_focus_key(event)
 		case platform.Text_Command:
-			// A text field's Tab comes through the input method.
+			// A text field's Tab arrives through the input method.
 			is_tab_kept := _is_tab_kept()
 			if event.name == "insertTab:" && !is_tab_kept do _move_focus(1)
 			if event.name == "insertBacktab:" && !is_tab_kept do _move_focus(-1)
-			// Escape in a text field comes through the input method too.
+			// Escape in a text field also arrives through the input method.
 			if event.name == "cancelOperation:" do _state.pressed_keys += {int(platform.Key.Escape)}
 		case platform.Text_Insert, platform.Text_Marked, platform.Screen_Change, platform.Appearance_Change:
 		}
@@ -167,7 +167,7 @@ _apply_scroll :: proc(event: platform.Scroll) {
 
 		if !is_scrolled do continue
 
-		// Boxes built before the next layout read the scroll, so it stays inside the last content.
+		// Boxes built before the next layout read the scroll, so keep it inside the last content.
 		max_scroll := max(0, box.content_size[side] - box.size[side])
 		box._scroll_target = clamp(box._scroll_target - delta[side], 0, max_scroll)
 		// macOS already supplies the glide after a trackpad flick.
@@ -175,7 +175,7 @@ _apply_scroll :: proc(event: platform.Scroll) {
 	}
 }
 
-// The box's input this frame: hover, press, activation, focus and drag.
+// This box's input for the frame: hover, press, activation, focus, and drag.
 signal :: proc(box: ^Box) -> Signal {
 	if box.forced != .None {
 		return {
@@ -211,17 +211,17 @@ signal :: proc(box: ^Box) -> Signal {
 	return signal
 }
 
-// The Signal of the current container. Call it inside the container's if.
+// The current container's Signal; call it inside the container's if.
 here :: proc() -> Signal {
 	return signal(current_parent())
 }
 
-// The whole current or last press, for a custom component that needs more than its Signal.
+// The whole current or last press, for a custom component that needs more than a Signal.
 interaction :: proc() -> Interaction {
 	return _state.interaction
 }
 
-// The pointer in points from the window's top left, or {-1, -1} when it is outside.
+// Pointer position in points from the window's top left; {-1, -1} when outside.
 mouse_position :: proc() -> [2]f32 {
 	return _state.mouse
 }
@@ -237,10 +237,10 @@ _apply_mouse_to_boxes :: proc() {
 	_state.cursor = .Arrow
 	modal := _find_modal()
 	if modal == nil do _visit_hot(_state.root, .Arrow)
-	// The layer itself covers the window; only the boxes on it are under the mouse.
+	// The overlay layer covers the window, so only the boxes on it are under the mouse.
 	for child := modal if modal != nil else _state.overlay_root.first; child != nil; child = child.next do _visit_hot(child, .Arrow)
 
-	// As in CSS, the deepest box under the pointer and every box around it count as hovered.
+	// Like CSS, the deepest box under the pointer and every box around it count as hovered.
 	clear(&_state.hover_chain)
 	for at := _state.pointer_box; at != nil; at = at.parent {
 		if at._key != 0 do append(&_state.hover_chain, at._key)

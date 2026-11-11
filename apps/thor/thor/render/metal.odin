@@ -13,7 +13,7 @@ Kind :: enum u32 {
 	Image = 2,
 }
 
-// This struct matches Instance in shaders.metal.
+// Must match Instance in shaders.metal.
 Instance :: struct {
 	rect:          [4]f32,
 	uv:            [4]f32,
@@ -26,20 +26,20 @@ Instance :: struct {
 	kind:          Kind,
 	end_color:     [4]f32,
 	gradient:      [2]f32,
-	// Turns a Solid rect about its centre, in radians, clockwise on the screen.
+	// Spins a Solid rect about its center, in radians, clockwise on screen.
 	rotation:      f32,
 	gradient_kind: Gradient_Kind,
-	// Under a glyph: with linear blending, it keeps the text's weight as Ghostty does.
+	// The color under a glyph. With linear blending it keeps the text's weight, as Ghostty does.
 	under_color:   [4]f32,
 }
 
-// The zero value runs from color to end_color down the gradient fractions, with ease in and out.
+// With no flags, the gradient runs top to bottom from color to end_color, easing in and out.
 Gradient_Kind :: bit_set[Gradient_Flag; u32]
 
 Gradient_Flag :: enum u32 {
-	// Left to right, in place of top to bottom.
+	// Left to right instead of top to bottom.
 	Across,
-	// At a steady rate, as a colour ramp needs.
+	// At a steady rate, as a color ramp needs.
 	Linear,
 }
 
@@ -49,7 +49,7 @@ _Batch :: struct {
 	texture:     ^MTL.Texture,
 	first_index: int,
 	count:       int,
-	// Erases what is under its instances, so glass behind the window shows through.
+	// Erases beneath its instances so glass behind the window shows through.
 	is_clear:    bool,
 }
 
@@ -59,7 +59,7 @@ INITIAL_INSTANCE_COUNT :: 8 * 1024
 _QUAD_VERTEX_COUNT :: 4
 _BYTES_PER_PIXEL :: 4
 
-// A window draws into it. It keeps the last frame, so a frame that matches it can skip drawing.
+// A window draws into it. It keeps the last frame so a matching frame can skip drawing.
 Surface :: struct {
 	layer:              ^CA.MetalLayer,
 	buffers:            [_FRAMES_IN_FLIGHT]^MTL.Buffer,
@@ -76,12 +76,12 @@ Surface :: struct {
 _state: struct {
 	device:        ^MTL.Device,
 	queue:         ^MTL.CommandQueue,
-	// By [is linear][is clear].
+	// Indexed [is_linear][is_clear].
 	pipelines:     [2][2]^MTL.RenderPipelineState,
 	color_flags:   u32,
 	sampler:       ^MTL.SamplerState,
 	white_texture: ^MTL.Texture,
-	// The current frame, for the target in use.
+	// The instances and batches of the current frame, for the target in use.
 	instances:     [dynamic]Instance,
 	batches:       [dynamic]_Batch,
 	upload_count:  int,
@@ -90,7 +90,7 @@ _state: struct {
 
 _shader_source := #load("shaders.metal", string)
 
-// layer can be nil when there is no screen. Call use_surface to draw into the surface.
+// layer may be nil when there is no screen. Call use_surface to draw into the surface.
 make_surface :: proc(layer: ^CA.MetalLayer) -> ^Surface {
 	target := new(Surface)
 	target.layer = layer
@@ -105,7 +105,7 @@ use_surface :: proc(target: ^Surface) {
 	_state.surface = target
 }
 
-// Frees the target after the GPU finishes its frames.
+// Frees the target once the GPU finishes its frames.
 destroy_surface :: proc(target: ^Surface) {
 	for command_buffer in target.command_buffers {
 		if command_buffer == nil do continue
@@ -120,7 +120,7 @@ destroy_surface :: proc(target: ^Surface) {
 	free(target)
 }
 
-// Every window shares the renderer. Later calls, such as from each headless run, do nothing.
+// Every window shares one renderer. Later calls, such as from each headless run, do nothing.
 start :: proc(device: ^MTL.Device) {
 	if _state.device != nil do return
 
@@ -143,8 +143,8 @@ start :: proc(device: ^MTL.Device) {
 	descriptor->setVertexFunction(library->newFunctionWithName(NS.AT("vertex_main")))
 	descriptor->setFragmentFunction(library->newFunctionWithName(NS.AT("fragment_main")))
 
-	// The shaders return premultiplied colour. A clear pipeline keeps only the part of the colour
-	// under each shape that the shape does not cover. An sRGB target blends in linear light.
+	// The shaders emit premultiplied color. A clear pipeline keeps only the color under each shape
+	// that the shape leaves uncovered. An sRGB target blends in linear light.
 	attachment := descriptor->colorAttachments()->object(0)
 	attachment->setBlendingEnabled(true)
 	attachment->setDestinationRGBBlendFactor(.OneMinusSourceAlpha)
@@ -174,7 +174,7 @@ start :: proc(device: ^MTL.Device) {
 }
 
 make_texture :: proc(size_pixels: [2]int, format: MTL.PixelFormat) -> ^MTL.Texture {
-	// The image threads have no autorelease pool of their own. Metal autoreleases the descriptor.
+	// Image threads have no autorelease pool of their own, and Metal autoreleases the descriptor.
 	pool := NS.AutoreleasePool.alloc()->init()
 	defer pool->drain()
 
@@ -200,7 +200,7 @@ upload_texture :: proc(texture: ^MTL.Texture, region: [4]int, pixels: rawptr, by
 	intrinsics.atomic_add(&_state.upload_count, 1)
 }
 
-// is_linear blends in linear light. is_p3 writes Display P3 for a layer in that colour space.
+// is_linear blends in linear light; is_p3 writes Display P3 for a layer in that space.
 set_color_mode :: proc(is_linear, is_p3: bool) {
 	_state.color_flags = (1 if is_linear else 0) | (2 if is_p3 else 0)
 }
@@ -217,7 +217,7 @@ begin_frame :: proc(size_pixels: [2]f32) {
 	clear(&_state.batches)
 }
 
-// One instance with the texture it draws with, as ui keeps a box's last frame to draw it again.
+// One instance with the texture it draws with. ui keeps these to redraw a box's last frame.
 Pushed :: struct {
 	instance: Instance,
 	texture:  ^MTL.Texture,
@@ -227,7 +227,7 @@ pushed_count :: proc() -> int {
 	return len(_state.instances)
 }
 
-// Appends every instance pushed from index first on, with its texture.
+// Appends every instance from index first on, with its texture.
 read_pushed :: proc(first: int, into: ^[dynamic]Pushed) {
 	for batch in _state.batches {
 		if batch.is_clear do continue
@@ -255,7 +255,7 @@ push :: proc(instance: Instance, texture: ^MTL.Texture = nil) {
 	append(&_state.instances, instance)
 }
 
-// Erases a rounded rect of what the frame drew so far, in pixels.
+// Erases a rounded rect of the frame so far, in pixels.
 push_clear :: proc(rect: [4]f32, corner_radius: f32, clip: [4]f32) {
 	if len(_state.instances) >= _MAX_INSTANCE_COUNT do return
 
@@ -306,7 +306,7 @@ _encode_pass :: proc(
 	encoder->endEncoding()
 }
 
-// For headless snapshots: it draws the last frame into memory, BGRA with premultiplied alpha.
+// For headless snapshots: draws the last frame into memory, as BGRA with premultiplied alpha.
 read_pixels :: proc(allocator := context.allocator) -> (pixels: []u8, size: [2]int) {
 	target := _state.surface
 	if target == nil || target.frame_index == 0 do return
@@ -393,7 +393,7 @@ end_frame :: proc(drawable: ^CA.MetalDrawable) {
 
 	_state.instances, target.shown_instances = target.shown_instances, _state.instances
 	_state.batches, target.shown_batches = target.shown_batches, _state.batches
-	// A frame drawn during a resize has the old size of the drawable. The layer stretches it.
+	// A frame drawn during a resize has the drawable's old size, and the layer stretches it.
 	texture := drawable->texture()
 	target.shown_size_pixels = {f32(texture->width()), f32(texture->height())}
 	target.shown_upload_count = upload_count

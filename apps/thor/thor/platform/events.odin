@@ -28,7 +28,7 @@ Mouse_Press :: struct {
 	position:    [2]f32,
 	button:      Mouse_Button,
 	modifiers:   Modifiers,
-	// 2 for the second press of a double click.
+	// 1 for the first press, 2 for the second press of a double click, and so on.
 	click_count: int,
 }
 
@@ -40,7 +40,7 @@ Mouse_Exit :: struct {
 }
 
 Scroll :: struct {
-	// The delta is in points for a trackpad and in lines for a mouse wheel.
+	// Points for a trackpad, lines for a mouse wheel.
 	delta:      [2]f32,
 	is_precise: bool,
 	is_start:   bool,
@@ -78,13 +78,13 @@ Event :: union {
 	Appearance_Change,
 }
 
-// The appearance or the accent colour changed in System Settings.
+// The appearance or accent color changed in System Settings.
 Appearance_Change :: struct {}
 
-// The window moved to another screen, which may have another size.
+// The window moved to another screen, which may be a different size.
 Screen_Change :: struct {}
 
-// The events of the window whose frame runs.
+// Returns events for the window whose frame is running.
 list_events :: proc() -> []Event {
 	window := current_window()
 	if window == nil do return nil
@@ -137,13 +137,13 @@ _apply_event :: proc(event: ^NS.Event) -> bool {
 	case .LeftMouseUp, .RightMouseUp, .OtherMouseUp:
 		append(&window.events, Mouse_Release{_to_button(event)})
 	case .AppKitDefined:
-		// In this event loop, AppKit warns "Window move completed without beginning" on subtype 21,
+		// AppKit warns "Window move completed without beginning" on subtype 21 in this event loop,
 		// even after sendEvent got subtype 20, the begin. Subtype 4 gives AppKit the new place.
 		return event->subtype() == 21
 	case .MouseExited:
 		append(&window.events, Mouse_Exit{})
 	case .ScrollWheel:
-		// The phases 1 and 32 are NSEventPhaseBegan and NSEventPhaseMayBegin.
+		// Phases 1 and 32 are NSEventPhaseBegan and NSEventPhaseMayBegin.
 		phase := objc_send(NS.UInteger, event, "phase")
 
 		append(

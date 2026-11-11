@@ -21,7 +21,7 @@ Weight :: enum {
 	Bold,
 }
 
-// NSFontWeight values, from NSFontDescriptor.h.
+// NSFontWeight values from NSFontDescriptor.h.
 _weight_values := [Weight]f64 {
 	.Auto     = 0,
 	.Regular  = 0,
@@ -30,7 +30,7 @@ _weight_values := [Weight]f64 {
 	.Bold     = 0.4,
 }
 
-// SF Pro, or SF Mono, whose letters are all as wide. Auto, the zero value, is System.
+// SF Pro, or SF Mono, whose letters all have the same width. The zero value is Auto, meaning System.
 Family :: enum {
 	Auto,
 	System,
@@ -73,7 +73,7 @@ _state: struct {
 	font_indices:   map[uint]u16,
 	system_fonts:   map[[3]u32]Font,
 	shaped:         map[u64]^Shaped_Text,
-	// Whether each font in fonts draws in colour. Its glyphs go to the colour atlas.
+	// Whether each font in fonts draws in color; those glyphs go to the color atlas.
 	is_color_font:  [dynamic]bool,
 	atlas:          _Atlas,
 	color_atlas:    _Atlas,
@@ -81,7 +81,7 @@ _state: struct {
 	is_atlas_reset: bool,
 }
 
-// Starts the atlas once, so glyphs already in it stay valid when headless runs start again.
+// Starts the atlas once, so glyphs already in it stay valid when a headless run starts again.
 start :: proc() {
 	if _state.atlas.texture != nil do return
 
@@ -213,7 +213,7 @@ shape_text :: proc(
 		ct_line := mac.CTLineCreateWithAttributedString(attributed)
 		defer mac.CFRelease(ct_line)
 
-		// macOS truncates nothing narrower than its ellipsis: it returns no line at all.
+		// macOS won't truncate below its ellipsis width; it returns no line at all.
 		is_fitting := f32(mac.CTLineGetTypographicBounds(ct_line, nil, nil, nil)) <= max_width_pixels
 		if max_width_pixels <= 0 || is_fitting {
 			append(&lines, _to_shaped_line(ct_line, font, 0, line_height))
@@ -322,8 +322,8 @@ caret_x :: proc(line: Shaped_Line, utf16_index: int) -> f32 {
 	return line.width_pixels
 }
 
-// The UTF-16 index of the caret place on the line nearest x_pixels.
-// shortcut: it reads glyphs left to right only. Use CoreText hit testing for right-to-left text.
+// The UTF-16 index of the caret spot on the line nearest x_pixels.
+// shortcut: reads glyphs left to right only; right-to-left text needs CoreText hit testing.
 index_at_x :: proc(line: Shaped_Line, x_pixels: f32) -> int {
 	for glyph, index in line.glyphs {
 		next := line.glyphs[index + 1].x_pixels if index + 1 < len(line.glyphs) else line.width_pixels

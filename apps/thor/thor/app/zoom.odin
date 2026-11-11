@@ -8,7 +8,7 @@ import "core:fmt"
 // The zooms ⌘+ and ⌘− step through. nil leaves the keys to the app.
 zoom_steps := []f32{0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3}
 
-// The setting name for the main window's zoom. Another window adds its id after it.
+// The setting name for the main window's zoom. Other windows add their id to it.
 _ZOOM_SETTING :: "thor zoom"
 
 _Zoom :: struct {
@@ -19,7 +19,7 @@ _Zoom :: struct {
 	is_saved: bool,
 }
 
-// Zooms the current window and saves the zoom, unless the min size would not fit the screen.
+// Zooms the current window and saves the zoom, unless the minimum size would not fit the screen.
 set_zoom :: proc(wanted: f32) {
 	state := &_current._zoom
 	screen := platform.read_screen_size_points()
@@ -40,7 +40,7 @@ _start_zoom :: proc(min_size: [2]f32, wanted: f32) {
 	state := &_current._zoom
 	state.min_size = min_size
 	state.wanted = 1
-	// A measured, captured or headless run neither reads nor saves the person's zoom.
+	// Measured, captured, and headless runs neither read nor save the person's zoom.
 	state.is_saved = wanted == 0 && !dev.is_bench && !dev.is_startup_mark && !platform.is_headless()
 
 	if wanted > 0 {

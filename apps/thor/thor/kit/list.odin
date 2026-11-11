@@ -4,19 +4,19 @@ import "../ui"
 
 _LIST_EXTRA_ROWS :: 2
 
-// Pass as row_height when rows differ in height. The list then measures each row.
+// Pass as row_height when rows differ in height; the list then measures each row.
 MEASURED :: 0
 
 _List :: struct {
-	// The measured height of each row, 0 until kit builds it. Only a MEASURED list keeps them.
+	// Each row's measured height, 0 until built; only a MEASURED list keeps them.
 	heights: [dynamic]f32,
-	// The rows of the last frame, from first on.
+	// Last frame's rows, from first onward.
 	first:   int,
 	keys:    [dynamic]u64,
 }
 
-// Builds only the rows on the screen. With row_height MEASURED, each row needs an id.
-// Inside a box that scrolls, the list fits its rows and does not scroll.
+// Builds only the rows on screen. With row_height MEASURED, every row needs an id.
+// Inside a box that scrolls, the list fits its rows and does not scroll itself.
 @(deferred_out = _end_list)
 list :: proc(
 	id: string,
@@ -69,7 +69,7 @@ _begin_list :: proc(
 		_window.lists[box._key] = list
 	}
 
-	// shortcut: heights belong to row numbers, clear them once the rows of a list can move.
+	// shortcut: heights are indexed by row number, so clear them once rows can move.
 	if row_height == 0 && len(list.heights) != count do resize(&list.heights, count)
 
 	height_of :: proc(list: ^_List, row_height, estimate: f32, index: int) -> f32 {
@@ -81,7 +81,7 @@ _begin_list :: proc(
 	scroller := box
 	for scroller != nil && (.Scroll not_in scroller.style.flags) do scroller = scroller.parent
 
-	// The rows box and the scroll box keep their places from the last frame.
+	// The rows box and the scroll box keep the places they had last frame.
 	rows_box := ui.find_box("rows", box)
 	is_placed := scroller != nil && rows_box != nil && scroller.size.y > 0
 	visible_top, visible_bottom: f32
@@ -111,7 +111,7 @@ _begin_list :: proc(
 			row := ui._find_box_with_key(key) if key != 0 else nil
 
 			if row != nil && row.size.y > 0 && row.size.y != height {
-				// A row above the view grew upwards. The scroll follows it to keep the view still.
+				// A row above the view grew taller, so the scroll follows it to keep the view still.
 				if top < visible_top do shift += row.size.y - height
 				list.heights[index] = row.size.y
 				is_changed = true
@@ -144,7 +144,7 @@ _begin_list :: proc(
 		}
 	}
 
-	// A scroll past the end, such as set_scroll(box, 1e9), shows the end after layout.
+	// A scroll past the end, like set_scroll(box, 1e9), lands on the end after layout.
 	if visible_bottom > total && visible_top > 0 {
 		shift := min(visible_top, visible_bottom - total)
 		visible_top -= shift
@@ -182,7 +182,7 @@ _begin_list :: proc(
 
 	for row in index ..< last do offset += height_of(list, row_height, estimate, row) + gap
 
-	// A first row with no height yet grows upwards, so the rows in view stay still.
+	// A first row with no height yet grows upward, keeping the rows in view still.
 	is_growing_up :=
 		row_height == 0 && first < last && list.heights[first] == 0 && list.heights[last - 1] > 0
 	padding := [4]f32{0, top, 0, 0}

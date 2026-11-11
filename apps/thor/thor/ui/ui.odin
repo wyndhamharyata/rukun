@@ -37,13 +37,13 @@ Size :: struct {
 // A fixed size in points.
 points :: proc "contextless" (value: f32) -> Size {return {.Points, value}}
 
-// Along the parent's axis, a share of the space left, by weight. Across it, all of the parent.
+// Along the parent's axis, a share of the leftover space by weight. Across it, the whole parent.
 fill :: proc "contextless" (weight: f32 = 1) -> Size {return {.Fill, weight}}
 
-// The children's size, with their gaps and the padding.
+// The size of the children, including their gaps and the padding.
 fit_children :: proc "contextless" () -> Size {return {.Children, 0}}
 
-// The text's size, with the padding.
+// The size of the text, including the padding.
 fit_text :: proc "contextless" () -> Size {return {.Text, 0}}
 
 // Auto, the zero value, is the start.
@@ -63,17 +63,17 @@ Flag :: enum {
 	Wrap_Text,
 	Truncate_Text,
 	Wrap_Children,
-	// Its .Clickable children are one Tab stop, and the arrow keys move between them.
+	// Clickable children count as one Tab stop; the arrow keys move between them.
 	Arrow_Keys,
-	// The box shows keyboard focus in its own way, as a text field does.
+	// The box draws keyboard focus itself, as a text field does.
 	No_Focus_Ring,
-	// With focus, the box takes Tab and Shift-Tab as text. Ctrl-Tab still moves focus.
+	// While focused, the box takes Tab and Shift-Tab as text. Ctrl-Tab still moves focus.
 	Keeps_Tab,
-	// On an overlay: boxes under it take no pointer input. Focus stays in it and later overlays.
+	// On an overlay: boxes under it get no pointer input, and focus stays in it and later overlays.
 	Modal,
-	// Fades in, in _FADE_MOTION, on the first frame the box exists.
+	// Fades in over _FADE_MOTION, on the first frame the box exists.
 	Fade_In,
-	// When the app stops building the box, its last frame stays and fades out in _FADE_MOTION.
+	// When the app stops building the box, its last frame stays and fades out over _FADE_MOTION.
 	Fade_Out,
 }
 
@@ -102,18 +102,18 @@ Style :: struct {
 	font_weight:      font.Weight,
 	font_size:        f32,
 	font_family:      font.Family,
-	// In points. 0 uses the font's own.
+	// Line height in points; 0 keeps the font's own.
 	line_height:      f32,
 	fade:             f32,
 	position:         [2]f32,
-	// A non-zero motion springs the box from its old place in its parent, and its size in points.
+	// A non-zero motion springs the box from its old place in the parent, and its size in points.
 	motion:           Motion,
-	// The system's glass behind the box, tinted with its background.
+	// The system's glass behind the box, tinted by its background.
 	glass:            Glass,
 	// 0 means no limit.
 	min_size:         [2]f32,
 	max_size:         [2]f32,
-	// The pointer shape over the box and over the children that set no cursor.
+	// Pointer shape over the box, inherited by children that set none.
 	cursor:           platform.Cursor,
 	flags:            Flags,
 }
@@ -123,10 +123,10 @@ Draw_Proc :: proc(box: ^Box, rect_pixels, clip_pixels: [4]f32, opacity: f32)
 Box :: struct {
 	// For warnings only. It can be a temporary string, so it is valid for this frame only.
 	id:               string,
-	// The hash outlives the frame, because _find_box_by_id reads boxes from the last frame.
+	// Outlives the frame so last frame's boxes stay searchable by id.
 	_id_hash:         u64,
 	_key:             u64,
-	// The key of the box, or of its nearest parent with an id. Child keys use it as the hash seed.
+	// The box's key, or that of its nearest parent with an id. Child keys hash from it.
 	_seed:            u64,
 	parent:           ^Box,
 	first, last:      ^Box,
@@ -147,19 +147,19 @@ Box :: struct {
 	_active_fraction: f32,
 	scroll:           f32,
 	_scroll_target:   f32,
-	// The scroll of the last layout. Events and set_scroll change scroll before the next layout.
+	// The scroll from the last layout. Events and set_scroll change scroll before the next one.
 	_placed_scroll:   f32,
-	// The kit component that builds the box sets it.
+	// Set by the kit component that builds the box.
 	role:             Role,
-	// A button's label, a field's placeholder, an icon button's id.
+	// A button's label, a field's placeholder, or an icon button's name.
 	label:            string,
-	// x and y of its place in its parent, then width and height, while style.motion springs them.
+	// x and y of its place in the parent, then width and height, as style.motion springs them.
 	_motion:          [4]_Animated_Value,
 	_appear:          _Animated_Value,
 	_was_built_last_frame: bool,
-	// A field's text, a slider's percent.
+	// A field's text or a slider's percent.
 	value:            string,
-	// Checked, on, selected or current.
+	// Checked, on, selected, or current.
 	is_on:            bool,
 }
 
@@ -183,18 +183,18 @@ _Animated_Value :: struct {
 	_last_built_frame: int,
 }
 
-// A spring that settles on its target in about duration seconds. The zero Motion arrives at once,
+// A spring that settles on its target in about duration seconds. A zero Motion arrives at once,
 // as every Motion does when the person reduces motion.
 Motion :: struct {
 	duration: f32,
-	// 0 settles with no overshoot. 0.3 overshoots a little.
+	// 0 settles with no overshoot; 0.3 overshoots a little.
 	bounce:   f32,
 }
 
-// Not style.motion: an overlay that fades must still follow its anchor at once.
+// Not style.motion: a fading overlay must still follow its anchor at once.
 _FADE_MOTION :: Motion{duration = 0.15}
 
-// A stiff spring stays stable at 240 steps a second, even when a frame takes 1/30 s.
+// Steps stiff springs at 240 Hz so they stay stable even on a 1/30 s frame.
 _SPRING_STEP_SECONDS :: 1.0 / 240
 
 HOT_RATE_PER_SECOND :: 20
@@ -207,7 +207,7 @@ _MAX_FRAME_SECONDS :: 1.0 / 30
 
 _NO_CLIP :: [4]f32{0, 0, 1e9, 1e9}
 
-// For text with no text_color. app sets it from kit's theme each frame.
+// Fallback for text with no text_color; app refreshes it from the theme each frame.
 _default_text_color := [4]f32{0.95, 0.95, 0.96, 1}
 
 Forced_State :: enum {
@@ -218,16 +218,16 @@ Forced_State :: enum {
 	Focus,
 }
 
-// Boxes built while it is not .None show that state at once and ignore the mouse, as in a gallery.
+// While set, new boxes show this state at once and ignore the mouse, as in a gallery.
 forced_state: Forced_State
 
-// The state of one window. Each window has its own, and _state points to the one in use.
+// The state of one window. Each window has its own, and _state points at the one in use.
 Context :: struct {
 	boxes:                  map[u64]^Box,
 	values:                 map[u64]_Animated_Value,
-	// The last frame of each box with .Fade_Out, by its key.
+	// The last frame of each .Fade_Out box, by its key.
 	ghosts:                 map[u64]_Ghost,
-	// The boxes with glass in the frame drawn last, which app passes to platform.
+	// The glass boxes of the last drawn frame, which app passes to platform.
 	glass_areas:            [dynamic]platform.Glass_Area,
 	root:                   ^Box,
 	overlay_root:           ^Box,
@@ -240,7 +240,7 @@ Context :: struct {
 	mouse:                  [2]f32,
 	hot_key:                u64,
 	active_key:             u64,
-	// The deepest box under the pointer, and the keys of that box and of every box around it.
+	// The deepest box under the pointer, plus the keys of it and every box around it.
 	pointer_box:            ^Box,
 	hover_chain:            [dynamic]u64,
 	interaction:            Interaction,
@@ -259,13 +259,13 @@ Context :: struct {
 	focused_key:            u64,
 	is_focus_moved:         bool,
 	focus_order:            [dynamic]_Focus_Stop,
-	// The last focused box of each group. Tab enters the group again at that box.
+	// The last focused box in each group, where Tab enters the group again.
 	group_focus:            map[u64]u64,
 	taken_keys:             bit_set[0 ..< 128],
 	pressed_keys:           bit_set[0 ..< 128],
 	is_animating:           bool,
 	is_frame_requested:     bool,
-	// Hashes of the warnings printed, so each prints once.
+	// Hashes of warnings already printed, so each prints once.
 	warned:                 map[u64]bool,
 }
 
@@ -334,7 +334,7 @@ _begin_frame :: proc(
 
 _OVERLAY_SEED :: 0x6f7665726c6179
 
-// The modal box and the overlays after it take the input.
+// The topmost modal box: it and the overlays above it take the input.
 _find_modal :: proc() -> ^Box {
 	modal: ^Box
 	for child := _state.overlay_root.first; child != nil; child = child.next {
@@ -344,8 +344,8 @@ _find_modal :: proc() -> ^Box {
 	return modal
 }
 
-// It draws last, takes the mouse first, and no box around the call clips or scrolls it.
-// style.position is in the window's points.
+// Draws last and takes the mouse first; nothing around the call clips or scrolls it.
+// style.position is in window points.
 @(deferred_none = pop_parent)
 overlay :: proc(id: string, style: Style) -> bool {
 	floating := style
@@ -358,14 +358,14 @@ overlay :: proc(id: string, style: Style) -> bool {
 	return true
 }
 
-// The search covers every container, so give the box an id that no other box uses.
+// The search covers every container, so give this box an id that no other box uses.
 _find_box_by_id :: proc(id: string) -> ^Box {
 	id_hash := hash.fnv64a(transmute([]u8)id)
 	found: ^Box
 	for _, candidate in _state.boxes {
 		if candidate._id_hash != id_hash || candidate._last_built_frame < _state.frame_index - 1 do continue
 		if found != nil {
-			// Map order picks the match, so the caller gets either box from one frame to the next.
+			// Map order picks the match, so the caller may get either box from one frame to the next.
 			_warn(candidate, "two boxes have the id \"%s\", so a lookup by it finds either one. Give each box its own id.", id)
 			return found
 		}
@@ -375,12 +375,12 @@ _find_box_by_id :: proc(id: string) -> ^Box {
 	return found
 }
 
-// Where the person pressed either mouse button this frame.
+// Where either mouse button went down this frame.
 _pressed_at :: proc() -> ([2]f32, bool) {
 	return _state.pressed_at, _state.is_pressed
 }
 
-// The pointer shape that the box under the mouse asks for.
+// The pointer shape the box under the mouse asks for.
 _cursor :: proc() -> platform.Cursor {
 	return _state.cursor
 }
@@ -390,30 +390,30 @@ Preferences :: platform.Preferences
 Glass :: platform.Glass
 Glass_Area :: platform.Glass_Area
 
-// app sets it at launch and when System Settings changes. It is the same for every window.
+// Set by app at launch and on System Settings changes; shared by every window.
 _preferences: Preferences
 
-// The person's display settings for accessibility, which motion, contrast and glass follow.
+// The person's accessibility display settings, which motion, contrast and glass follow.
 preferences :: proc() -> Preferences {
 	return _preferences
 }
 
-// In points at the current zoom, so zooming in makes it smaller. Lay out by it, never by the zoom.
+// Points at the current zoom, so zooming in shrinks it. Lay out by it, never by the zoom.
 window_size :: proc() -> [2]f32 {
 	return _state.window_size
 }
 
-// True while a spring, fade or scroll still moves.
+// True while a spring, fade or scroll is still moving.
 is_animating :: proc() -> bool {
 	return _state.is_animating
 }
 
-// Use it when a value changes after you build the boxes that read it.
+// Call it when a value changes after you built the boxes that read it.
 request_frame :: proc() {
 	_state.is_frame_requested = true
 }
 
-// Asks for a frame seconds from now, as a clock or a delay needs.
+// Asks for a frame this many seconds from now, for clocks and delays.
 request_frame_after :: proc(seconds: f64) {
 	platform.request_frame_after(seconds)
 }
@@ -427,16 +427,16 @@ _is_frame_wanted :: proc() -> bool {
 }
 
 _to_key :: proc(id: string, seed: u64) -> u64 {
-	// 0x100000001b3 is the FNV-1a 64-bit prime. 0xcbf29ce484222325 is its offset basis.
+	// FNV-1a 64-bit: 0x100000001b3 is the prime, 0xcbf29ce484222325 the offset basis.
 	return hash.fnv64a(transmute([]u8)id, seed * 0x100000001b3 + 0xcbf29ce484222325)
 }
 
-// The box that the boxes built now go into.
+// The box that newly built boxes go into.
 current_parent :: proc() -> ^Box {
 	return _state.parents[len(_state.parents) - 1]
 }
 
-// Adds a box to the current parent. Its id keeps its state between frames, and "" keeps none.
+// Adds a box to the current parent. An id keeps its state between frames; "" keeps none.
 box :: proc(id: string, style: Style, text: string = "") -> ^Box {
 	parent := current_parent()
 	key := _to_key(id, parent._seed) if id != "" else 0
@@ -510,14 +510,14 @@ _make_box :: proc(key: u64, style: Style) -> ^Box {
 	return box
 }
 
-// Makes box the parent of the boxes built in the if block.
+// Makes box the parent of the boxes built inside the if block.
 @(deferred_none = pop_parent)
 scope :: proc(box: ^Box) -> bool {
 	push_parent(box)
 	return true
 }
 
-// A box that lays out the children built in the if block from left to right.
+// Lays out the if block's children left to right.
 @(deferred_none = pop_parent)
 row :: proc(id: string, style: Style = {}) -> bool {
 	style := style
@@ -526,7 +526,7 @@ row :: proc(id: string, style: Style = {}) -> bool {
 	return true
 }
 
-// A box that lays out the children built in the if block from top to bottom.
+// Lays out the if block's children top to bottom.
 @(deferred_none = pop_parent)
 col :: proc(id: string, style: Style = {}) -> bool {
 	style := style
@@ -535,8 +535,8 @@ col :: proc(id: string, style: Style = {}) -> bool {
 	return true
 }
 
-// changes replaces each field it sets, and adds its flags, so a caller sets only what differs.
-// shortcut: a zero field cannot set a value back to zero, such as axis .X or weight .Regular.
+// Each field changes sets replaces the base, and flags add up, so callers set only what differs.
+// shortcut: a zero field is skipped, so merge can't set anything back to zero, like axis .Auto.
 merge :: proc(base, changes: Style) -> Style {
 	merged, changes := base, changes
 
@@ -562,7 +562,7 @@ pop_parent :: proc() {
 	pop(&_state.parents)
 }
 
-// The box with this id in parent, from this frame or the last, or nil.
+// The box with this id under parent, from this frame or the last, or nil.
 find_box :: proc(id: string, parent: ^Box) -> ^Box {
 	return _state.boxes[_to_key(id, parent._seed)] or_else nil
 }
@@ -571,7 +571,7 @@ _find_box_with_key :: proc(key: u64) -> ^Box {
 	return _state.boxes[key] or_else nil
 }
 
-// Layout keeps the scroll inside the content, so a large value scrolls to the end.
+// Layout clamps scroll to the content, so a large value scrolls to the end.
 set_scroll :: proc(box: ^Box, scroll: f32) {
 	if box == nil do return
 
@@ -579,7 +579,7 @@ set_scroll :: proc(box: ^Box, scroll: f32) {
 	box._scroll_target = scroll
 }
 
-// Springs a value toward target with motion. The id keeps the value between frames.
+// Springs a value toward target; the id carries the value across frames.
 animate :: proc(id: string, target: f32, motion: Motion) -> f32 {
 	key := _to_key(id, 0)
 	value, ok := _state.values[key]
@@ -614,8 +614,8 @@ _spring :: proc(value, velocity, target: f32, motion: Motion) -> (f32, f32) {
 	return x, v
 }
 
-// shortcut: only a size in points springs, as a fill or fit size is known only after layout. Spring
-// the resolved size in layout if an app needs it.
+// shortcut: only a points size springs, since fill and fit sizes resolve during layout. Spring
+// the resolved size there instead if an app needs it.
 _spring_size :: proc(box: ^Box) {
 	for axis in 0 ..< 2 {
 		size := &box.style.width if axis == 0 else &box.style.height
@@ -628,7 +628,7 @@ _spring_size :: proc(box: ^Box) {
 	}
 }
 
-// Springs each box with a motion from its old place to its new one, and moves its children with it.
+// Springs every box with a motion from its old place to its new one, carrying its children along.
 _spring_places :: proc(box: ^Box) {
 	if box._key != 0 && box.style.motion != {} {
 		target := _to_place_in_parent(box)
@@ -646,7 +646,7 @@ _spring_places :: proc(box: ^Box) {
 	for child := box.first; child != nil; child = child.next do _spring_places(child)
 }
 
-// Measured in the parent's content, so a scroll or a parent that moves springs nothing.
+// Measured in the parent's content, so scrolling or a moving parent springs nothing.
 _to_place_in_parent :: proc(box: ^Box) -> [2]f32 {
 	place := [2]f32{box.rect.x, box.rect.y}
 	parent := box.parent
@@ -658,7 +658,7 @@ _to_place_in_parent :: proc(box: ^Box) -> [2]f32 {
 	return place
 }
 
-// Moves the box and every box in it. The clips follow the boxes that clip, as _place sets them.
+// Moves the box and everything in it. Clips follow the boxes that clip, as _place sets them.
 _move_subtree :: proc(box: ^Box, delta: [2]f32) {
 	box.rect += {delta.x, delta.y, delta.x, delta.y}
 	child_clip := _intersect(box.clip, box.rect) if .Clip in box.style.flags else box.clip
@@ -697,7 +697,7 @@ _end_frame :: proc() {
 	_draw_ghosts()
 }
 
-// Headless runs call it to start from the state of a new window.
+// Headless runs call it to start from the state of a fresh window.
 _reset :: proc() {
 	for _, ghost in _state.ghosts do delete(ghost.pushed)
 	clear(&_state.ghosts)
@@ -736,19 +736,19 @@ _remove_unbuilt :: proc() {
 	}
 }
 
-// Points to pixels on the window's screen.
+// Converts points to pixels on the window's screen.
 to_pixels :: proc(points: f32) -> f32 {
 	return points * _state.pixels_per_point
 }
 
-// Zoom scales the boxes. AppKit places views in the window's own points.
+// Zoom scales the boxes, while AppKit places views in the window's own points.
 _to_window_points :: proc(rect: [4]f32) -> [4]f32 {
 	return rect * _state.zoom
 }
 
 _warn :: proc(box: ^Box, format: string, args: ..any) {
 	path := _to_box_path(box)
-	// Hash the format, not the message, because the numbers change as the window resizes.
+	// Hash the format, not the message, since the numbers change as the window resizes.
 	key := hash.fnv64a(transmute([]u8)path) ~ hash.fnv64a(transmute([]u8)format)
 	if _state.warned[key] do return
 
@@ -756,7 +756,7 @@ _warn :: proc(box: ^Box, format: string, args: ..any) {
 	fmt.eprintfln("thor: %s: %s", path, fmt.tprintf(format, ..args))
 }
 
-// "page > header > \"Title\"": each box's id, or its text when it has none, from the window down.
+// Like "page > header > \"Title\"": each box's id, or its text, from the window down.
 _to_box_path :: proc(box: ^Box) -> string {
 	names: [dynamic]string
 	names.allocator = context.temp_allocator

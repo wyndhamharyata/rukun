@@ -6,7 +6,7 @@ import "core:fmt"
 _POPOVER_GAP_POINTS :: 4
 _POPOVER_MIN_WIDTH_POINTS :: 160
 
-// A string anchor is an element id anywhere in the window. A point suits a right-click menu.
+// A box, an element id anywhere in the window, or a point for a right-click menu.
 Anchor :: union {
 	^ui.Box,
 	string,
@@ -14,23 +14,23 @@ Anchor :: union {
 }
 
 _Popover :: struct {
-	// The popover that kit builds now, so a menu_item in it can close it.
+	// The popover kit is building now, so a menu_item inside it can close it.
 	is_open:             ^bool,
 	box:                 ^ui.Box,
 	anchor:              ^ui.Box,
 	is_focusing_first:   bool,
-	// The popover whose items had focus last frame, so its close gives focus back to its anchor.
+	// The popover whose items had focus last frame, so closing it returns focus to its anchor.
 	focused_popover_key: u64,
 }
 
-// Opens below anchor, or above it with no room below, and stays inside the window.
-// Escape, a menu_item or a click outside it and anchor closes it. A focused anchor passes focus in.
+// Opens below the anchor, or above it with no room below, and stays inside the window.
+// Escape, a menu_item or a click outside it and the anchor closes it. A focused anchor passes focus in.
 @(deferred_out = _end_popover)
 popover :: proc(id: string, is_open: ^bool, anchor: Anchor, width: f32 = 0) -> bool {
 	return _begin_popover(id, is_open, anchor, width)
 }
 
-// A button that opens a menu. Build the menu items in the if block.
+// A button that opens a menu. Build the menu items inside the if block.
 @(deferred_out = _end_popover)
 menu_button :: proc(
 	id: string,
@@ -98,7 +98,7 @@ _begin_popover :: proc(id: string, is_open: ^bool, anchor: Anchor, width: f32) -
 		border_width  = shape.border,
 		border_color  = colors.line,
 		position      = position,
-		// The panel stays hidden until kit measures it, so it never shows in the wrong place.
+		// Hidden until kit measures it, so it never flashes in the wrong place.
 		fade          = 0 if size.y > 0 else 1,
 		flags         = {.Floating, .Hoverable, .Arrow_Keys, .Fade_In, .Fade_Out},
 	}
@@ -134,7 +134,7 @@ _end_popover :: proc(ok: bool) {
 	_window.popover = {focused_popover_key = _window.popover.focused_popover_key}
 }
 
-// Closes the popover that kit builds now, and gives focus back to its anchor if its items had it.
+// Closes the popover kit is building now, returning focus to its anchor if its items had it.
 _close_popover :: proc() {
 	if _window.popover.is_open == nil do return
 

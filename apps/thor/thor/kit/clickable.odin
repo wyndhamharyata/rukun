@@ -5,7 +5,7 @@ import "../ui"
 _CARD_HOVER_LIGHTEN :: 0.06
 _CARD_PRESS_LIGHTEN :: 0.1
 
-// For a card or row that opens something; list_row selects. Inside the if, ui.here() is its Signal.
+// For a card or row that opens something; use list_row for selecting. Inside the if, ui.here() is its Signal.
 @(deferred_none = ui.pop_parent)
 clickable :: proc(id: string, style: ui.Style = {}) -> bool {
 	base := ui.Style {
@@ -14,7 +14,7 @@ clickable :: proc(id: string, style: ui.Style = {}) -> bool {
 		flags            = {.Clickable},
 	}
 	merged := ui.merge(base, style)
-	// The row hover would show through a filled card, so hover mixes in the text colour.
+	// Row hover would show through a filled card, so hover mixes in the text color instead.
 	if style.background.a > 0 && style.hover_background == {} {
 		merged.hover_background = mix_color(style.background, colors.base_content, _CARD_HOVER_LIGHTEN)
 	}

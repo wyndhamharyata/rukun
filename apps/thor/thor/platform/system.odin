@@ -28,7 +28,7 @@ Pasteboard :: struct {
 	using _: NS.Object,
 }
 
-// The .app's Resources folder, or resources/ beside the executable when it runs from a build.
+// The .app's Resources folder, or resources/ beside the executable when running from a build.
 resource_folder :: proc() -> string {
 	@(static) folder: string
 	if folder != "" do return folder
@@ -39,15 +39,15 @@ resource_folder :: proc() -> string {
 		return folder
 	}
 
-	// macOS takes a folder with the executable's name, such as gallery/gallery from odin test,
-	// as an old-style bundle with its own Resources folder. So use the executable's path.
+	// macOS treats a folder named like the executable, such as gallery/gallery from odin test,
+	// as an old-style bundle with its own Resources folder, so use the executable's path.
 	executable := objc_send(^NS.String, bundle, "executablePath")->odinString()
 	folder = strings.concatenate({filepath.dir(executable), "/resources"})
 
 	return folder
 }
 
-// A number kept in the app's defaults, across launches.
+// A number kept in the app's defaults across launches.
 read_setting :: proc(key: string) -> (value: f64, ok: bool) {
 	if _headless.is_on do return 0, false
 
@@ -133,10 +133,10 @@ set_clipboard :: proc(text: string) {
 	objc_send(NS.BOOL, board, "setString:forType:", ns_text, NS.AT(_PLAIN_TEXT_TYPE))
 }
 
-// The day it is with no screen, so a calendar draws the same every run.
+// The date used with no screen, so a calendar draws the same every run.
 HEADLESS_TODAY :: [3]int{2026, 11, 10}
 
-// Today in the person's time zone: its year, month and day.
+// Today in the person's time zone, as year, month, and day.
 read_today :: proc() -> [3]int {
 	if _headless.is_on do return HEADLESS_TODAY
 
@@ -146,7 +146,7 @@ read_today :: proc() -> [3]int {
 	return {year, int(month), day}
 }
 
-// The week's first day in the person's region: 1 for Sunday, 2 for Monday. Sunday with no screen.
+// The region's first weekday: 1 for Sunday, 2 for Monday; Sunday with no screen.
 read_first_weekday :: proc() -> int {
 	if _headless.is_on do return 1
 

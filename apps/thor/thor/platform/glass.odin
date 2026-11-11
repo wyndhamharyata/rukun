@@ -5,11 +5,11 @@ import NS "core:sys/darwin/Foundation"
 Glass :: enum {
 	None,
 	Regular,
-	// More transparent.
+	// More transparent than Regular.
 	Clear,
 }
 
-// A box with glass, in the window's points from its top left. tint is its background.
+// A glass box's rect in window points from the top left; tint is its background.
 Glass_Area :: struct {
 	rect:          [4]f32,
 	corner_radius: f32,
@@ -32,11 +32,11 @@ _Window_Glass :: struct {
 	// It merges glass views that touch, as the system's do.
 	container: ^NS.View,
 	views:     [dynamic]^NS.View,
-	// What set_background asked for, which the layer shows while no glass is open.
+	// The last set_background color, which the layer shows while no glass is open.
 	background: [4]f32,
 }
 
-// app calls it after each frame with the frame's glass areas. It changes views only on a change.
+// app calls it after each frame with the frame's glass areas. Views change only on a change.
 set_glass :: proc(window: ^Native_Window, areas: []Glass_Area) {
 	if _headless.is_on || window.ns_window == nil do return
 
@@ -88,7 +88,7 @@ set_glass :: proc(window: ^Native_Window, areas: []Glass_Area) {
 		objc_send(nil, view, "setTintColor:", tint)
 	}
 
-	// The glass shows the desktop only through a window, and a layer, with nothing painted behind.
+	// Glass shows the desktop only through a window and a layer with nothing painted behind.
 	has_glass := len(areas) > 0
 	if has_glass != had_glass {
 		is_see_through := has_glass || window.blur_view != nil

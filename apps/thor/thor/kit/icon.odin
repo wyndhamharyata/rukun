@@ -15,12 +15,12 @@ _draw_icon :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 	icon.draw(paint.name, ui.to_pixels(paint.size_points), rect, clip, color, ui._drawing_under)
 }
 
-// An SF Symbol, size_points tall, in the middle of its box. style can make the box larger.
+// An SF Symbol size_points tall, centered in its box; style can grow the box.
 icon_box :: proc(symbol: string, size_points: f32, color: [4]f32, style: ui.Style = {}) -> ui.Signal {
 	return ui.signal(_icon_box("", symbol, size_points, color, style))
 }
 
-// The id lets a component click the icon.
+// The id lets a component make the icon clickable.
 _icon_box :: proc(id, symbol: string, size_points: f32, color: [4]f32, style: ui.Style = {}) -> ^ui.Box {
 	style := style
 	box_size := size_points + style.padding.x + style.padding.z

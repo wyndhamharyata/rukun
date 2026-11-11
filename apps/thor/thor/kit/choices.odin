@@ -15,12 +15,12 @@ _CHIP_HEIGHT_POINTS :: 24
 
 _SEGMENT_INSET_POINTS :: 2
 
-// The control keeps id and shows label and icon: a select, segmented, combobox, menu or palette.
+// The control keeps id and shows label and icon: a select, segmented, combobox, menu, or palette row.
 Option :: struct {
 	id:          string,
 	label:       string,
 	icon:        string,
-	// A shortcut or a note that shows faint at the right of a menu or palette row.
+	// A shortcut or note shown faintly at the right of a menu or palette row.
 	hint:        string,
 	is_disabled: bool,
 }
@@ -31,12 +31,12 @@ checkbox :: proc(id: string, is_on: ^bool, label := "", tone := Tone.Primary, st
 	return _build_toggle(id, is_on, label, .Checkbox, tone, style)
 }
 
-// A switch, for a setting that takes effect at once. It flips is_on^ as checkbox does.
+// A switch for a setting that takes effect at once; flips is_on^ like checkbox.
 toggle :: proc(id: string, is_on: ^bool, label := "", tone := Tone.Primary, style: ui.Style = {}) -> ui.Signal {
 	return _build_toggle(id, is_on, label, .Toggle, tone, style)
 }
 
-// A pill with the label inside, in its tone's colour when on. It flips is_on^ as a checkbox does.
+// A pill with the label inside, in its tone's color when on; flips is_on^ like checkbox.
 toggle_chip :: proc(id: string, is_on: ^bool, label: string, tone := Tone.Primary) -> ui.Signal {
 	look, _ := _tone_style(tone if is_on^ else .Base, .Soft if is_on^ else .Solid)
 	if !is_on^ do look.text_color = with_opacity(colors.base_content, 0.7)
@@ -82,7 +82,7 @@ _flip_on_activation :: proc(signal: ui.Signal, is_on: ^bool) -> ui.Signal {
 	if signal.is_activated {
 		is_on^ = !is_on^
 		signal.is_changed = true
-		// Boxes that kit built before this one read the old value.
+		// Boxes built before this one already read the old value.
 		ui.request_frame()
 	}
 
@@ -138,7 +138,7 @@ _style_toggle :: proc(box: ^ui.Box, is_on: bool, role: ui.Role, tone: Tone, stat
 		}
 		box.style = ui.merge(ui.merge(box.style, look), style)
 
-		// Base fills the track with base_content, and a white knob does not show on it.
+		// Base fills the track with base_content, where a white knob would not show.
 		knob := colors.base_100 if is_on && tone == .Base else [4]f32{1, 1, 1, 1}
 		knob_size := size.y - 2 * _TOGGLE_KNOB_INSET_POINTS
 		travel := size.x - 2 * _TOGGLE_KNOB_INSET_POINTS - knob_size
@@ -151,8 +151,8 @@ _style_toggle :: proc(box: ^ui.Box, is_on: bool, role: ui.Role, tone: Tone, stat
 	}
 }
 
-// Sets selected^ to id on a click. selected^ keeps the id string, so the id must outlive the frame.
-// In a box with .Arrow_Keys, Tab enters at the selected radio, and the arrows move and select.
+// Sets selected^ to id on click; selected^ keeps the id string, so it must outlive the frame.
+// In an .Arrow_Keys box, Tab enters at the selected radio, and arrows move and select.
 radio :: proc(id: string, selected: ^string, label := "", tone := Tone.Primary, style: ui.Style = {}) -> ui.Signal {
 	look := ui.Style{flags = {.Clickable}}
 	if label != "" do look = {axis = .X, align = .Center, gap = 8, flags = {.Clickable}}
@@ -171,7 +171,7 @@ radio :: proc(id: string, selected: ^string, label := "", tone := Tone.Primary, 
 	return signal
 }
 
-// Sets selected^ to id on a click, or when the arrows move focus onto the element in a group.
+// Sets selected^ to id on click or when arrow keys focus this element in a group.
 _select_on_activation :: proc(signal: ui.Signal, selected: ^string, id: string) -> ui.Signal {
 	signal := signal
 	if (signal.is_activated || _is_arrowed_to(signal)) && selected^ != id {
@@ -224,8 +224,8 @@ _to_option_label :: proc(options: []Option, id: string) -> string {
 	return ""
 }
 
-// Also for tabs. selected^ keeps the option's id string, so the ids must outlive the frame.
-// A zero width fits the options. Sets is_changed on the frame selected^ changes.
+// Also for tabs. selected^ keeps option ids, so they must outlive the frame.
+// A zero width fits the options. Sets is_changed when selected^ changes.
 segmented :: proc(id: string, selected: ^string, options: []Option, tone := Tone.Base, width := ui.Size{}) -> ui.Signal {
 	track_look := ui.Style {
 		width         = width if width != {} else ui.fit_children(),
@@ -241,8 +241,8 @@ segmented :: proc(id: string, selected: ^string, options: []Option, tone := Tone
 	color, content := tone_colors(tone)
 
 	if ui.scope(track) {
-		// The selection is a pill that springs to the picked segment's place in the last frame.
-		// Before that place exists, the segment fills itself.
+		// The selection is a pill that springs to the picked segment's place from the last frame.
+		// Until that place exists, the segment fills itself instead.
 		picked := ui._find_box_with_key(ui._to_key(selected^, track._seed))
 		has_pill := picked != nil && picked.rect.z > picked.rect.x
 		if has_pill {
@@ -288,7 +288,7 @@ segmented :: proc(id: string, selected: ^string, options: []Option, tone := Tone
 			if is_on {
 				_enter_group_at(segment)
 				text_color = colors.base_content if tone == .Base else content
-				// Base raises the selected segment as a card, and a tone fills it.
+				// Base raises the selected segment like a card; a tone fills it instead.
 				if !has_pill && tone == .Base {
 					segment.style.background = colors.popover
 					segment.style.border_width = shape.border

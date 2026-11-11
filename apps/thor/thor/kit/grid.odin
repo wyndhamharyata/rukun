@@ -3,8 +3,8 @@ package kit
 import "../ui"
 import "core:math"
 
-// Fits as many min_width tiles a row as it can, and widens them to fill it. Scrolls as a list does.
-// Tile height is row_height plus height_per_width times width: 46 and 1 for square art over text.
+// Fits as many min_width tiles into a row as it can, then widens them to fill it. Scrolls like a list.
+// A tile's height is row_height plus height_per_width times its width: 46 and 1 for square art over text.
 @(deferred_out = _end_grid)
 grid :: proc(
 	id: string,
@@ -17,7 +17,7 @@ grid :: proc(
 	tile: [2]f32,
 	ok: bool,
 ) {
-	// The width the grid had last frame. Until it has one, the tiles take min_width.
+	// The width the grid had last frame. Before it has one, the tiles take min_width.
 	last_box := ui.find_box(id, ui.current_parent())
 	width := last_box.size.x if last_box != nil else 0
 	columns := max(1, int((width + gap) / (min_width + gap)))

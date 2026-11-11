@@ -49,7 +49,7 @@ NUMBER_INT32 :: 3
 IMAGE_ALPHA_NONE :: 0
 IMAGE_ALPHA_PREMULTIPLIED_FIRST :: 2
 BITMAP_BYTE_ORDER_32_LITTLE :: 2 << 12
-// kCTFontTraitColorGlyphs: the font draws its glyphs in colour, as Apple Color Emoji does.
+// kCTFontTraitColorGlyphs: the font draws its own colored glyphs, as Apple Color Emoji does.
 FONT_TRAIT_COLOR_GLYPHS :: 1 << 13
 
 Dictionary_Callbacks :: struct {

@@ -24,8 +24,8 @@ FRAME_TIME_WIDTH_POINTS :: 110
 
 FRAME_TIME_RIGHT_MARGIN_POINTS :: 10
 
-// A test drives and reads a window through the THOR_ settings, so it never takes the screen.
-// THOR_CAPTURE runs headless and writes the PNG THOR_CAPTURE_SECONDS of app time after it settles.
+// Tests drive and read a window through THOR_ settings, never taking the screen.
+// THOR_CAPTURE runs headless and writes the PNG THOR_CAPTURE_SECONDS of app time after settling.
 capture_path: string
 capture_seconds: f32
 is_bench: bool
@@ -33,14 +33,14 @@ bench_seconds: f64
 is_startup_mark: bool
 is_showing_frames: bool
 is_background: bool
-// THOR_KEEP_FRAME, which watch.sh sets, opens the window where it last was.
+// THOR_KEEP_FRAME, set by watch.sh, reopens the window where it last was.
 is_keeping_frame: bool
 window_size_points: [2]f32
-// THOR_ZOOM sets the zoom at open, and the app does not save it. 0 means unset.
+// THOR_ZOOM sets the zoom at open without saving it; 0 means unset.
 forced_zoom: f32
-// THOR_APPEARANCE=light or dark overrides the app's own appearance.
+// THOR_APPEARANCE=light or dark overrides the app's appearance.
 forced_appearance: platform.Appearance
-// Tests set it in place of the person's accessibility settings.
+// Tests set this instead of the person's accessibility settings.
 forced_preferences: Maybe(platform.Preferences)
 test_typing: string
 started_at: time.Tick
@@ -107,7 +107,7 @@ begin_frame :: proc(start: time.Tick) {
 	if is_bench do append(&frame_starts, start)
 }
 
-// Call it each frame for THOR_BENCH. Time sets the place, so a slow frame keeps the speed.
+// Call it each frame for THOR_BENCH. Time sets the place so slow frames keep the speed.
 bench_scroll :: proc(box: ^ui.Box) {
 	if !is_bench || box == nil || _first_frame_end == {} do return
 
@@ -128,7 +128,7 @@ bench_scroll :: proc(box: ^ui.Box) {
 	ui.set_scroll(box, _to_bounced(position, max_scroll))
 }
 
-// Folds a position into 0 to max_scroll, so the scroll turns back at each end.
+// Folds a position into 0..max_scroll so the scroll turns back at each end.
 _to_bounced :: proc(position, max_scroll: f32) -> f32 {
 	period := 2 * max_scroll
 	folded := math.mod(position, period)
@@ -137,7 +137,7 @@ _to_bounced :: proc(position, max_scroll: f32) -> f32 {
 	return folded if folded <= max_scroll else period - folded
 }
 
-// THOR_STARTUP_MARK prints first-frame when the layout needs no further frame.
+// THOR_STARTUP_MARK prints first-frame once the layout needs no further frame.
 mark_startup :: proc(is_layout_settled: bool) {
 	if !is_startup_mark || _is_startup_marked || !is_layout_settled do return
 

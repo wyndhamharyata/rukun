@@ -19,10 +19,10 @@ Config :: struct {
 	title:           string,
 	size:            [2]f32,
 	min_size:        [2]f32,
-	// Shows the desktop through the window, blurred. kit.colors.base_100 needs alpha below 1.
+	// Shows the blurred desktop behind the window. kit.colors.base_100 needs alpha below 1.
 	is_blurred:      bool,
 	kind:            Window_Kind,
-	// For a window per document. Its frame reads it from current_window().data.
+	// The app's own pointer, for a window per document. Read it from current_window().data.
 	data:            rawptr,
 }
 
@@ -35,7 +35,7 @@ Window :: struct {
 	id:             string,
 	kind:           Window_Kind,
 	data:           rawptr,
-	// In points at the zoom, as ui.window_size gives them.
+	// The window size in points at the current zoom, as ui.window_size gives it.
 	size_points:    [2]f32,
 	_platform:      ^platform.Native_Window,
 	_target:        ^render.Surface,
@@ -50,28 +50,28 @@ Window :: struct {
 	_background:    [4]f32,
 	_is_inspecting: bool,
 	_is_outlining:  bool,
-	// The window's size in points at the zoom, at the last build.
+	// Window size in points at the zoom, as of the last build.
 	_layout_size:   [2]f32,
-	// True in the first of two builds, which lays out the boxes and draws nothing.
+	// Set during the first of two builds, which lays out boxes without drawing.
 	_is_unseen:     bool,
 	_last_frame:    time.Tick,
 	_frame_start:   time.Tick,
 }
 
-// Belongs to the current window, the window whose frame the app builds now.
+// The current window's native window, whose frame the app builds now.
 native_window: ^platform.Native_Window
 
 zoom: f32 = 1
 
-// Frames drawn, in every window.
+// Total frames drawn across all windows.
 frame_count: int
 
 _windows: [dynamic]^Window
 _current: ^Window
 _has_menu: bool
 
-// Runs until the app quits. Without fetch_image, kit.image and images.watch read files only.
-// to_image_family names the family of a URL, so a larger loaded size shows while the URL loads.
+// Runs the app until it quits. Without fetch_image, kit.image and images.watch only read files.
+// to_image_family names a URL's image family, so a bigger size shows while the URL loads.
 run :: proc(
 	config: Config,
 	frame: proc(),
@@ -88,7 +88,7 @@ run :: proc(
 	platform.run()
 }
 
-// For an app whose frame proc calls begin_frame and end_frame, and that runs platform.run itself.
+// For an app whose frame proc calls begin_frame and end_frame and runs platform.run itself.
 // fetch_image and to_image_family work as in run.
 open_main_window :: proc(
 	config: Config,
@@ -100,7 +100,7 @@ open_main_window :: proc(
 	_open(MAIN_WINDOW, config, nil, frame, dev.forced_zoom, fetch_image, to_image_family)
 }
 
-// Brings an open window to the front. Call it on an event, such as a click, not in every frame.
+// Brings an open window to the front. Call it on an event such as a click, not every frame.
 open_window :: proc(id: string, config: Config, frame: proc()) {
 	if shown := _find_window(id); shown != nil {
 		platform.bring_to_front(shown._platform)
@@ -112,7 +112,7 @@ open_window :: proc(id: string, config: Config, frame: proc()) {
 	_use(kept)
 }
 
-// Closes the window, as its close button does. The app quits when its last Normal window closes.
+// Closes the window like its close button. The app quits when its last Normal window closes.
 close_window :: proc(id: string) {
 	if shown := _find_window(id); shown != nil do platform.close_window(shown._platform)
 }
@@ -122,7 +122,7 @@ is_window_open :: proc(id: string) -> bool {
 	return _find_window(id) != nil
 }
 
-// The window whose frame the app builds now.
+// The window whose frame the app is building now.
 current_window :: proc() -> ^Window {
 	return _current
 }
@@ -141,7 +141,7 @@ _open :: proc(
 	frame: proc(),
 	on_frame: platform.Frame_Proc,
 	zoom_wanted: f32,
-	// App-wide. Only the first window uses them.
+	// App-wide; only the first window uses them.
 	fetch_image: images.Fetch_Proc = nil,
 	to_image_family: images.Family_Proc = nil,
 ) -> ^Window {
@@ -158,7 +158,7 @@ _open :: proc(
 	size := config.size
 	if id == MAIN_WINDOW && dev.window_size_points != {} do size = dev.window_size_points
 	is_behind := dev.is_background && !dev.is_bench
-	// A measured run ignores the saved place, as it ignores the saved zoom.
+	// A measured run ignores the saved window place, as it ignores the saved zoom.
 	is_measured := dev.is_bench || dev.is_startup_mark
 	frame_name := "" if is_measured else fmt.tprintf("thor window %s", id)
 	opened._platform = platform.open_window(
@@ -199,7 +199,7 @@ _open :: proc(
 	return opened
 }
 
-// Makes the window the one ui, kit, render and the globals here act on.
+// Makes this the window that ui, kit, render and the globals here act on.
 _use :: proc(shown: ^Window) {
 	if _current != nil {
 		_current._is_inspecting = dev.is_inspecting
@@ -226,7 +226,7 @@ _find_by_platform :: proc(target: ^platform.Native_Window) -> ^Window {
 	return nil
 }
 
-// Skips the current window, which runs its frame now.
+// Skips the current window, whose frame is running now.
 _remove_closed :: proc() {
 	for index := len(_windows) - 1; index >= 0; index -= 1 {
 		closed := _windows[index]
@@ -263,8 +263,8 @@ resource_path :: proc(name: string) -> string {
 HEADLESS_SETTLE_FRAMES :: 120
 HEADLESS_LOAD_WAIT :: 5 * time.Second
 
-// For the headless package and THOR_CAPTURE. platform.step_headless runs each frame, in memory.
-// is_dark replaces the system's appearance. Later windows have no screen either.
+// For the headless package and THOR_CAPTURE: platform.step_headless runs each frame in memory.
+// is_dark replaces the system appearance. Later windows have no screen either.
 _open_headless :: proc(
 	config: Config,
 	frame: proc(),
@@ -288,7 +288,7 @@ _close_headless :: proc() {
 	render.use_surface(nil)
 }
 
-// Runs frames until no window asks for one and no image is loading, or until it reaches a limit.
+// Runs frames until no window wants one and no image is loading, or until it hits a limit.
 _settle_headless :: proc() {
 	load_deadline := time.tick_add(time.tick_now(), HEADLESS_LOAD_WAIT)
 	for frame := 0; frame < HEADLESS_SETTLE_FRAMES; {
@@ -302,7 +302,7 @@ _settle_headless :: proc() {
 	}
 }
 
-// Between headless frames, makes read_pixels and the globals here read the window with this id.
+// Between headless frames, points read_pixels and the globals here at the window with this id.
 _use_headless_window :: proc(id: string) -> bool {
 	shown := _find_window(id)
 	if shown == nil do return false
@@ -332,8 +332,8 @@ _capture :: proc(config: Config, frame: proc(), fetch_image: images.Fetch_Proc, 
 	fmt.printfln("captured %dx%d to %s", size.x, size.y, dev.capture_path)
 }
 
-// When the window size or zoom changes, it builds the frame twice and draws only the second build.
-// So a box size from the last frame, read in a build, always matches this frame on the screen.
+// On a size or zoom change, builds the frame twice and draws only the second.
+// So a last-frame box size read in a build always matches this frame on screen.
 _run_settled :: proc() -> bool {
 	shown := _find_by_platform(platform.current_window())
 	if shown == nil do return false
@@ -383,14 +383,14 @@ begin_frame :: proc() -> (frame_seconds: f32) {
 	ui._default_text_color = kit.colors.base_content
 	ui._is_glass_shown = !platform.is_headless() && !ui.preferences().is_reducing_transparency
 	ui._glass_fallback = kit.colors.base_100
-	// A window with a screen is in Display P3. Snapshots stay in sRGB.
+	// Windows with a screen render in Display P3; snapshots stay in sRGB.
 	render.set_color_mode(kit.is_blending_linear, !platform.is_headless())
 	ui._min_contrast = max(kit.min_contrast, 4.5) if ui.preferences().is_increasing_contrast else kit.min_contrast
 	ui._focus_ring_color = kit.with_opacity(kit.colors.primary, kit._FOCUS_BORDER_ALPHA)
 	kit._apply_text_events(events)
 	dev.apply_inspector_keys(events)
 
-	// The capture reads the boxes only, so an opaque window paints its colour in the root box too.
+	// The capture reads boxes only, so an opaque window also paints its color in the root box.
 	if !shown._is_blurred do ui.current_parent().style.background = kit.colors.base_100
 
 	return frame_seconds
@@ -407,7 +407,7 @@ end_frame :: proc() -> bool {
 	if native_window.accessibility.is_wanted do _update_accessibility()
 	platform.set_glass(native_window, ui._state.glass_areas[:])
 	kit._finish_text_fields()
-	// AppKit puts the arrow back at the window's edges, so set the shape again each frame.
+	// AppKit resets to the arrow at the window's edges, so set the shape each frame.
 	if ui.mouse_position().x >= 0 do platform.set_cursor(ui._cursor())
 	frame_count += 1
 

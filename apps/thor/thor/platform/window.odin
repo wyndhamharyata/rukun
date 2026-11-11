@@ -9,7 +9,7 @@ import CA "vendor:darwin/QuartzCore"
 
 objc_send :: intrinsics.objc_send
 
-// Odin 2026-10 builds objc_send calls only in a program that looks up a class by name.
+// Odin 2026-10 only builds objc_send calls in a program that looks up a class by name.
 @(init)
 _find_class_for_objc_send :: proc "contextless" () {
 	_ = intrinsics.objc_find_class("NSObject")
@@ -19,7 +19,7 @@ Frame_Proc :: proc() -> bool
 
 Window_Kind :: enum {
 	Normal,
-	// Floats over every app's windows and leaves the keyboard with the app in front.
+	// Floats over every app's windows, leaving the keyboard with the app in front.
 	Panel,
 }
 
@@ -32,22 +32,22 @@ Native_Window :: struct {
 	size_points:        [2]f32,
 	pixels_per_point:   f32,
 	kind:               Window_Kind,
-	// Its close button, ⌘W or close_window sets it. A closed window runs no more frames.
+	// Set by its close button, ⌘W, or close_window. A closed window runs no more frames.
 	is_closed:          bool,
 	view:               ^NS.View,
 	input_view:         ^NS.View,
 	display_link:       ^Display_Link,
-	// The window's delegate, and its display link's and timers' target.
+	// The window's delegate, and the target of its display link and timers.
 	target:             ^_Target,
 	timer:              ^NS.Timer,
-	// macOS stops the display link of a covered window, so a timer runs its frames.
+	// macOS pauses the display link of a covered window, so a timer runs its frames instead.
 	frame_timer:        ^NS.Timer,
 	is_link_running:    bool,
 	is_frame_requested: bool,
 	is_screen_changed:  bool,
 	is_look_changed:    bool,
 	is_frame_restored:  bool,
-	// _release freed its AppKit objects. The struct stays until forget_window.
+	// _release freed its AppKit objects; the struct stays until forget_window.
 	is_released:        bool,
 	is_forgotten:       bool,
 	on_frame:           Frame_Proc,
@@ -63,10 +63,10 @@ Native_Window :: struct {
 
 _state: struct {
 	app:           ^NS.Application,
-	// The menus' and the appearance notifications' target.
+	// The target for menu actions and appearance notifications.
 	target:        ^_Target,
 	windows:       [dynamic]^Native_Window,
-	// The window whose frame runs, which the calls without a window act on.
+	// The window whose frame is running; window-less calls act on it.
 	current:       ^Native_Window,
 	is_background: bool,
 	is_quitting:   bool,
@@ -140,7 +140,7 @@ Target_windowDidChangeOcclusionState :: proc "c" (self: ^_Target, notification: 
 	_request_frame_of(window)
 }
 
-// The menu bar's Edit and View items send their shortcut as a key press to the window in front.
+// The menu bar's Edit and View items send their shortcut to the window in front as a key press.
 @(objc_type = _Target, objc_implement, objc_name = "menuKey", objc_selector = "menuKey:")
 Target_menuKey :: proc "c" (self: ^_Target, item: ^NS.MenuItem) {
 	context = _state.odin_context
@@ -159,7 +159,7 @@ Target_menuQuit :: proc "c" (self: ^_Target, item: NS.id) {
 	quit()
 }
 
-// Element frames are in screen points, so a moved window needs new ones.
+// Accessibility element frames are in screen points, so a moved window needs new ones.
 @(objc_type = _Target, objc_implement, objc_name = "windowDidMove", objc_selector = "windowDidMove:")
 Target_windowDidMove :: proc "c" (self: ^_Target, notification: NS.id) {
 	window := _find_by_target(self)
@@ -192,7 +192,7 @@ foreign objc_runtime {
 
 OCCLUSION_VISIBLE :: 1 << 1
 
-// The window whose frame runs, or the first open one between frames.
+// The window whose frame is running, or the first open one between frames.
 current_window :: proc "contextless" () -> ^Native_Window {
 	if _state.current != nil do return _state.current
 
@@ -203,12 +203,12 @@ current_window :: proc "contextless" () -> ^Native_Window {
 	return nil
 }
 
-// The calls without a window act on this window until its frame ends or until the next call.
+// Calls without a window act on this one until its frame ends or the next call.
 use_window :: proc "contextless" (window: ^Native_Window) {
 	_state.current = window
 }
 
-// Brings an open window in front: a panel without bringing the app in front.
+// Brings an open window forward; a panel without bringing the app forward.
 bring_to_front :: proc(window: ^Native_Window) {
 	if _headless.is_on || window.is_closed do return
 
@@ -220,7 +220,7 @@ bring_to_front :: proc(window: ^Native_Window) {
 	_state.app->activate()
 }
 
-// True while the window whose frame runs has the keyboard. Always with no screen.
+// True while the window whose frame runs has the keyboard, and always true with no screen.
 is_key_window :: proc() -> bool {
 	window := current_window()
 	if _headless.is_on || window == nil do return true
@@ -228,7 +228,7 @@ is_key_window :: proc() -> bool {
 	return !window.is_closed && bool(window.ns_window->keyWindow())
 }
 
-// Asks for a frame of the window whose frame runs.
+// Requests another frame for the current window.
 request_frame :: proc "contextless" () {
 	if window := current_window(); window != nil do _request_frame_of(window)
 }
@@ -302,7 +302,7 @@ _run_frame :: proc(window: ^Native_Window) {
 	is_frame_wanted := window.on_frame() || window.is_frame_requested || is_resized
 
 	_clear_events(window)
-	// The other windows read the same app state, and the input can change it.
+	// Other windows read the same app state, which this frame's input may have changed.
 	if had_input {
 		for other in _state.windows {
 			if other != window do _request_frame_of(other)
@@ -331,7 +331,7 @@ _stop_frames :: proc "contextless" (window: ^Native_Window) {
 	}
 }
 
-// Reads events until quit runs or the last Normal window closes.
+// Reads events until quit is called or the last Normal window closes.
 run :: proc() {
 	for !_state.is_quitting && _has_normal_window() {
 		pool := NS.AutoreleasePool.alloc()->init()
@@ -357,9 +357,9 @@ _has_normal_window :: proc() -> bool {
 	return false
 }
 
-// Asks for a frame of the window whose frame runs, seconds from now.
+// Asks for a frame of the current window, seconds from now.
 request_frame_after :: proc(seconds: f64) {
-	// With no window, the test moves the clock and runs the frames.
+	// With no window, the test moves the clock and runs the frames itself.
 	if _headless.is_on do return
 
 	window := current_window()
@@ -388,7 +388,7 @@ request_frame_after :: proc(seconds: f64) {
 wake :: proc "contextless" () {
 	if _headless.is_on || _state.app == nil do return
 
-	// Worker threads have no autorelease pool for the event.
+	// Worker threads have no autorelease pool, so make one for this event.
 	pool := NS.AutoreleasePool.alloc()->init()
 	defer pool->drain()
 
@@ -401,7 +401,7 @@ quit :: proc() {
 	wake()
 }
 
-// Works as the close button does: frames stop, and the struct stays until forget_window.
+// Works like the close button: frames stop, and the struct stays until forget_window.
 close_window :: proc(window: ^Native_Window) {
 	if window.is_closed do return
 
@@ -409,7 +409,7 @@ close_window :: proc(window: ^Native_Window) {
 	if window.ns_window != nil do objc_send(nil, window.ns_window, "close")
 }
 
-// The owner no longer holds the window, so _release_closed can free it.
+// Marks that the owner no longer holds the window, so _release_closed can free it.
 forget_window :: proc(window: ^Native_Window) {
 	window.is_forgotten = true
 }
@@ -421,11 +421,11 @@ _mark_closed :: proc(window: ^Native_Window) {
 		if window.timer != nil do objc_send(nil, window.timer, "invalidate")
 		window.timer = nil
 	}
-	// What the other windows show may depend on this one being open.
+	// Other windows may depend on this one being open.
 	_request_every_frame()
 }
 
-// Call it between events, never inside a window's own callbacks.
+// Call it between events, never from a window's own callbacks.
 _release_closed :: proc() {
 	for index := len(_state.windows) - 1; index >= 0; index -= 1 {
 		window := _state.windows[index]
@@ -453,7 +453,7 @@ _release :: proc(window: ^Native_Window) {
 	window.ns_window = nil
 }
 
-// The window of ours that has the keyboard, else the current one.
+// Our window that has the keyboard, or else the current one.
 _find_key_window :: proc "contextless" () -> ^Native_Window {
 	if !_headless.is_on && _state.app != nil {
 		key := _state.app->keyWindow()

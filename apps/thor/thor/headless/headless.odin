@@ -16,7 +16,7 @@ import "core:testing"
 
 DEFAULT_SIZE :: [2]f32{1000, 700}
 
-// A pixel differs when a channel differs from the expected channel by more than this, out of 255.
+// A pixel differs when any channel is off by more than this, out of 255.
 PIXEL_TOLERANCE :: 8
 
 Options :: struct {
@@ -24,13 +24,13 @@ Options :: struct {
 	size:       [2]f32,
 	// Pixels per point. 2 when zero.
 	scale:      f32,
-	// 1 when zero.
+	// Defaults to 1 when zero.
 	zoom:       f32,
-	// .System keeps the app's kit.appearance. If that is .System too, the window is dark.
+	// .System keeps the app's kit.appearance; if that is .System too, the window is dark.
 	appearance: platform.Appearance,
 }
 
-// An input acts on an element's id or label, the element, or a point in the main window.
+// An input targets an element's id or label, the element itself, or a point in the main window.
 Target :: union {
 	string,
 	^ui.Box,
@@ -39,12 +39,12 @@ Target :: union {
 
 _session: struct {
 	kept_appearance: platform.Appearance,
-	// The window that has the keyboard: the last window the test clicked, else the main window.
+	// The window that has the keyboard: the last one the test clicked, else the main window.
 	key_window:      ^app.Window,
 }
 
-// Draws every app window into memory. It never uses the person's keyboard, mouse or clipboard.
-// Call close when done. Only one app can run headless at a time.
+// Draws every app window into memory, never touching the person's keyboard, mouse, or clipboard.
+// Call close when done. Only one app runs headless at a time.
 open :: proc(frame: proc(), options: Options = {}) {
 	_session = {
 		kept_appearance = kit.appearance,
@@ -58,13 +58,13 @@ open :: proc(frame: proc(), options: Options = {}) {
 	app._settle_headless()
 }
 
-// Closes the windows that open opened, and restores kit.appearance.
+// Closes the windows created by open, and restores kit.appearance.
 close :: proc() {
 	app._close_headless()
 	kit.appearance = _session.kept_appearance
 }
 
-// Runs frames until no window asks for one and no image loads. Each input and read calls it first.
+// Runs frames until no window asks for one and no image is loading. Input and read calls run it first.
 settle :: proc() {
 	app._settle_headless()
 }
@@ -74,7 +74,7 @@ wait :: proc(seconds: f32) {
 	for _ in 0 ..< int(seconds / platform.HEADLESS_FRAME_SECONDS + 0.5) do platform.step_headless(nil)
 }
 
-// Clicks the target count times, so 2 is a double click.
+// Clicks the target count times; 2 is a double-click.
 click :: proc(target: Target, count := 1, loc := #caller_location) {
 	_press(target, .Left, count, loc)
 }
@@ -111,7 +111,7 @@ hover :: proc(target: Target, loc := #caller_location) {
 	settle()
 }
 
-// Scrolls the box under target by points, as a trackpad does. A positive y shows what is below.
+// Scrolls the box under target by points like a trackpad; positive y reveals what is below.
 scroll :: proc(target: Target, points: [2]f32, loc := #caller_location) {
 	settle()
 	shown, position, ok := _to_input(target, loc)
@@ -122,7 +122,7 @@ scroll :: proc(target: Target, points: [2]f32, loc := #caller_location) {
 	settle()
 }
 
-// Presses a key in the key window. A text field gets text or a command, such as deleteBackward:.
+// Presses a key in the key window. A text field gets text or a command such as deleteBackward:.
 press :: proc(key: platform.Key, modifiers: platform.Modifiers = {}) {
 	settle()
 	shown := _to_key_window()
@@ -148,7 +148,7 @@ type_text :: proc(text: string, loc := #caller_location) {
 	settle()
 }
 
-// Closes the window, as its close button does.
+// Closes the window like its close button.
 close_window :: proc(id: string) {
 	settle()
 	app.close_window(id)
@@ -182,7 +182,7 @@ find :: proc(target: Target, loc := #caller_location) -> ^ui.Box {
 	return nil
 }
 
-// Matches the id first, then the label, in every open window, in build order. Uses temp_allocator.
+// Matches the id first, then the label, across open windows in build order; uses the temp allocator.
 find_all :: proc(id_or_label: string) -> []^ui.Box {
 	settle()
 	found := make([dynamic]^ui.Box, context.temp_allocator)
@@ -199,7 +199,7 @@ find_all :: proc(id_or_label: string) -> []^ui.Box {
 }
 
 // One line per element, with its role, label, value and state, indented under its parent.
-// Layout boxes and the insides of a control do not show.
+// Layout boxes and the insides of a control are left out.
 tree :: proc(with_rects := false, window := app.MAIN_WINDOW) -> string {
 	settle()
 	builder := strings.builder_make(context.temp_allocator)
@@ -234,8 +234,8 @@ snapshot :: proc(path: string, window := app.MAIN_WINDOW) -> bool {
 	return images.write_png(path, pixels, size)
 }
 
-// Compares tree(with_rects, window) with snapshots/<name>.txt beside the test file.
-// It writes the file and passes when the file is missing or THOR_UPDATE_SNAPSHOTS=1.
+// Compares tree(with_rects, window) against snapshots/<name>.txt beside the test file.
+// Writes the file and passes when it is missing or THOR_UPDATE_SNAPSHOTS=1.
 expect_tree :: proc(
 	t: ^testing.T,
 	name: string,
@@ -265,8 +265,8 @@ expect_tree :: proc(
 	return false
 }
 
-// Compares a window with snapshots/<name>.png, with the same file rules as expect_tree.
-// On a difference, it writes <name>.actual.png and <name>.diff.png, with the changed pixels red.
+// Compares a window against snapshots/<name>.png, under the same file rules as expect_tree.
+// On a mismatch it writes <name>.actual.png and <name>.diff.png, with changed pixels in red.
 expect_snapshot :: proc(t: ^testing.T, name: string, window := app.MAIN_WINDOW, loc := #caller_location) -> bool {
 	settle()
 	if !app._use_headless_window(window) {
@@ -314,7 +314,7 @@ _press :: proc(target: Target, button: platform.Mouse_Button, count: int, loc: r
 	shown, position, ok := _to_input(target, loc)
 	if !ok do return
 	_session.key_window = shown
-	// The pointer moves first, as a person's pointer does, so a press over a text field focuses it.
+	// Move the pointer first, as a person's pointer would, so a press over a text field focuses it.
 	platform.step_headless(shown._platform, platform.Mouse_Move{position})
 	settle()
 	for click_count in 1 ..= count {
@@ -324,7 +324,7 @@ _press :: proc(target: Target, button: platform.Mouse_Button, count: int, loc: r
 	settle()
 }
 
-// The target's window, and the middle of the target's visible part, in that window's own points.
+// The target's window and the middle of its visible part, in that window's own points.
 _to_input :: proc(
 	target: Target,
 	loc: runtime.Source_Code_Location,
@@ -493,7 +493,7 @@ _to_diff :: proc(expected, actual, diff: []u8) -> (differing: int) {
 _to_line_diff :: proc(expected, actual: string) -> string {
 	old := strings.split_lines(expected, context.temp_allocator)
 	new := strings.split_lines(actual, context.temp_allocator)
-	// common[i][j]: the length of the longest common run of old[i:] and new[j:].
+	// common[i][j] holds the length of the longest common run of old[i:] and new[j:].
 	width := len(new) + 1
 	common := make([]int, (len(old) + 1) * width, context.temp_allocator)
 	#reverse for _, i in old {

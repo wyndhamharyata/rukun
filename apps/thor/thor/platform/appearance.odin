@@ -26,7 +26,7 @@ _NS_Workspace :: struct {
 	using _: NS.Object,
 }
 
-// System Settings > Accessibility > Display.
+// From System Settings > Accessibility > Display.
 Preferences :: struct {
 	is_reducing_motion:       bool,
 	is_increasing_contrast:   bool,
@@ -38,7 +38,7 @@ _NS_Distributed_Center :: struct {
 	using _: NS.Object,
 }
 
-// Sets the look of the menus, the title bar and the input method's windows. System follows macOS.
+// Sets the look of menus, the title bar, and input method windows. System follows macOS.
 set_appearance :: proc(appearance: Appearance) {
 	if _headless.is_on do return
 
@@ -62,11 +62,11 @@ is_dark_appearance :: proc() -> bool {
 	return strings.contains(name, "Dark")
 }
 
-// The accent colour chosen in System Settings, in the app's appearance.
+// The System Settings accent color, in the app's appearance.
 read_accent_color :: proc() -> [4]f32 {
 	if _headless.is_on do return HEADLESS_ACCENT
 
-	// The accent has a light and a dark shade; the current drawing appearance picks one.
+	// The accent has light and dark shades; the current drawing appearance picks one.
 	objc_send(nil, _NS_Appearance, "setCurrentAppearance:", objc_send(^NS.Object, _state.app, "effectiveAppearance"))
 	accent := objc_send(^NS.Color, NS.Color, "controlAccentColor")
 	srgb := objc_send(^NS.Object, _NS_Color_Space, "sRGBColorSpace")
@@ -93,7 +93,7 @@ read_preferences :: proc() -> Preferences {
 	}
 }
 
-// macOS posts these when the appearance, the accent or a display setting changes in System Settings.
+// macOS posts these when the appearance, accent, or a display setting changes.
 _watch_appearance :: proc() {
 	selector := intrinsics.objc_find_selector("appearanceChanged:")
 	shared := objc_send(^NS.Object, _NS_Distributed_Center, "defaultCenter")

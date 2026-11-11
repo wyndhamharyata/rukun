@@ -37,7 +37,7 @@ Role :: enum {
 	Splitter,
 }
 
-// One element that VoiceOver reads, in build order. parent is the index of its parent, or -1.
+// One element VoiceOver reads, in build order. parent is its parent's index, or -1.
 Accessibility_Node :: struct {
 	key:         u64,
 	parent:      int,
@@ -46,17 +46,17 @@ Accessibility_Node :: struct {
 	value:       string,
 	is_on:       bool,
 	is_disabled: bool,
-	// In the window's points, from its top left.
+	// In the window's points, measured from its top left.
 	rect:        [4]f32,
 }
 
 _Accessibility :: struct {
-	// An assistive app asked for the elements, so from then on each frame updates them.
+	// An assistive app asked for the elements, so each frame updates them from then on.
 	is_wanted: bool,
 	elements:  map[u64]^NS.Object,
-	// A hash of what each element showed last, so a change posts a notification.
+	// A hash of what each element last showed, so a change posts a notification.
 	shown:     map[u64]u64,
-	// Every element in build order with its screen rect, for hit tests.
+	// Every element in build order with its screen rect, for hit testing.
 	placed:    [dynamic]_Placed_Element,
 	top:       ^NS.Array,
 	focused:   ^NS.Object,
@@ -73,7 +73,7 @@ _NS_Accessibility_Element :: struct {
 	using _: NS.Object,
 }
 
-// The view the window draws in. AppKit asks it for the elements that VoiceOver reads.
+// The view the window draws in; AppKit asks it for the elements VoiceOver reads.
 @(objc_class = "ThorMetalView", objc_superclass = NS.View, objc_implement)
 _Metal_View :: struct {
 	using _: NS.View,
@@ -97,7 +97,7 @@ _Metal_View_accessibilityChildren :: proc "c" (self: ^_Metal_View) -> ^NS.Array 
 	window := _find_by_view(self)
 	if window == nil do return nil
 
-	// The first question starts the updates. The elements arrive with the next frame.
+	// The first question starts the updates; the elements arrive with the next frame.
 	if !window.accessibility.is_wanted {
 		window.accessibility.is_wanted = true
 		_request_frame_of(window)
@@ -111,7 +111,7 @@ _Metal_View_accessibilityHitTest :: proc "c" (self: ^_Metal_View, point: NS.Poin
 	window := _find_by_view(self)
 	if window == nil do return self
 
-	// A later element is deeper or on top, so the last one under the point wins.
+	// Later elements are deeper or on top, so the last one under the point wins.
 	found: ^NS.Object = self
 	for placed in window.accessibility.placed {
 		r := placed.rect
@@ -189,7 +189,7 @@ update_accessibility :: proc(window: ^Native_Window, nodes: []Accessibility_Node
 	state.top = _to_ns_array(top[:])
 	objc_send(nil, state.top, "retain")
 
-	// Before the releases below, while the element that had focus still exists.
+	// Done before the releases below, while the element that had focus still exists.
 	if focused != state.focused {
 		if state.focused != nil do objc_send(nil, state.focused, "setAccessibilityFocused:", NS.BOOL(false))
 		state.focused = focused
@@ -287,7 +287,7 @@ _to_appkit_role :: proc(role: Role) -> (^NS.String, ^NS.String) {
 	return NS.AT("AXGroup"), nil
 }
 
-// A toast says its text once, as macOS says a notification.
+// A toast announces its text once, the way macOS announces a notification.
 _announce :: proc(text: string) {
 	HIGH_PRIORITY :: 90
 	values := [2]^NS.Object{_to_ns_string(text), objc_send(^NS.Object, NS.Number, "numberWithInt:", i32(HIGH_PRIORITY))}

@@ -10,7 +10,7 @@ import "core:time"
 
 _Bar_Paint :: struct {
 	first_ratio, last_ratio: f32,
-	// A zero colour fills with base_content.
+	// A zero color fills with base_content.
 	color:                   [4]f32,
 }
 
@@ -45,7 +45,7 @@ _draw_bar :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 	)
 }
 
-// The width in points of text on one line in the system font.
+// The width in points of one line of text in the system font.
 measure_text :: proc(text: string, font_size: f32, weight := font.Weight.Regular) -> f32 {
 	if text == "" do return 0
 
@@ -55,7 +55,7 @@ measure_text :: proc(text: string, font_size: f32, weight := font.Weight.Regular
 	)
 }
 
-// A horizontal line, 1 point high, across the parent.
+// A 1-point horizontal line across the parent.
 divider :: proc(style: ui.Style = {}) -> ui.Signal {
 	look := ui.Style {
 		width      = ui.fill(),

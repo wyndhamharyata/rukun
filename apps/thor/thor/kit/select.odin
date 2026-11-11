@@ -8,10 +8,10 @@ import "core:math"
 
 _SLIDER_KNOB_POINTS :: 16
 _SLIDER_HEIGHT_POINTS :: 20
-// With a zero step, a key press moves this share of the range.
+// The share of the range one key press moves when step is zero.
 _SLIDER_KEY_SHARE :: 0.05
 
-// selected^ keeps the option's id string, so the ids must outlive the frame.
+// selected^ stores an option id, so the ids must outlive the frame.
 // A zero width fits the text. Sets is_changed on the frame selected^ changes.
 select :: proc(
 	id: string,
@@ -55,7 +55,7 @@ select :: proc(
 	if trigger.is_activated do is_open = !is_open
 	is_changed := false
 	if popover(fmt.tprintf("%s_options", id), &is_open, box) {
-		// When the keyboard opens it, focus goes to the selected option, else to the first.
+		// When the keyboard opens it, focus goes to the selected option, or else the first.
 		is_focusing := _window.popover.is_focusing_first
 		_window.popover.is_focusing_first = false
 		for option in options {
@@ -90,8 +90,8 @@ _Slider_Paint :: struct {
 	color: [4]f32,
 }
 
-// The arrows move value^ by step, or by a twentieth of range for step 0. A step also snaps a drag.
-// is_set_on_release sets is_changed only on release, for a seek bar. value^ still follows the drag.
+// Arrows move value^ by step, or a twentieth of the range when step is 0; step also snaps drags.
+// is_set_on_release reports is_changed only on release, for seek bars; value^ still follows the drag.
 slider :: proc(
 	id: string,
 	value: ^f32,
@@ -102,7 +102,7 @@ slider :: proc(
 	tone := Tone.Primary,
 	width := ui.Size{.Fill, 1},
 ) -> ui.Signal {
-	// The corners shape only the focus ring.
+	// The corners shape the focus ring only.
 	look := ui.Style {
 		width         = width,
 		height        = ui.points(_SLIDER_HEIGHT_POINTS),
@@ -140,7 +140,7 @@ slider :: proc(
 
 			value^ += -key_step if key == .Left || key == .Down else key_step
 			is_keyed = true
-			// The slider takes the key, so the app's arrow shortcuts wait while it has focus.
+			// The slider takes the key, so the app's arrow shortcuts wait while it is focused.
 			ui._state.taken_keys += {int(key)}
 		}
 	}

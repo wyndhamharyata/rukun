@@ -11,10 +11,10 @@ _COLOR_STRIP_POINTS :: 14
 _COLOR_KEY_STEP :: 0.02
 _COLOR_HUE_KEY_STEP :: 3
 
-// Keeps hue, saturation and brightness, so a grey, which has no hue, keeps the hue it had.
+// Keeps hue, saturation and brightness, so a gray, which has no hue, keeps the hue it had.
 _Color_Picker :: struct {
 	hsv:   [3]f32,
-	// The colour that kit last read hsv from or wrote hsv to.
+	// The color hsv was last read from or written to.
 	rgb:   [3]f32,
 	input: ^Text_Input,
 }
@@ -23,7 +23,7 @@ _Color_Paint :: struct {
 	hsv: [3]f32,
 }
 
-// Sets color^ but not its alpha, with a drag, the arrows, or a hex such as #3b82f6 on Return.
+// Sets color^ but not its alpha, by drag, arrow keys, or a hex such as #3b82f6 on Return.
 // width is in points. Sets is_changed on the frame color^ changes.
 color_picker :: proc(id: string, color: ^[4]f32, width: f32 = 220) -> ui.Signal {
 	box := ui.box(id, {width = ui.points(width), axis = .Y, gap = 10})
@@ -89,7 +89,7 @@ color_picker :: proc(id: string, color: ^[4]f32, width: f32 = 220) -> ui.Signal 
 	return signal
 }
 
-// A swatch of color^ that opens a color_picker in a popover. width is the picker's, in points.
+// A swatch of color^ that opens a color_picker in a popover. width is the picker's width in points.
 color_well :: proc(id: string, color: ^[4]f32, width: f32 = 220) -> ui.Signal {
 	look := ui.Style {
 		width            = ui.points(44),
@@ -127,14 +127,14 @@ color_well :: proc(id: string, color: ^[4]f32, width: f32 = 220) -> ui.Signal {
 	return signal
 }
 
-// The colour as #rrggbb, in the temp allocator.
+// The color as #rrggbb, in the temp allocator.
 to_hex :: proc(color: [4]f32) -> string {
 	to_byte :: proc(channel: f32) -> int {return int(math.round(clamp(channel, 0, 1) * 255))}
 
 	return fmt.tprintf("#%02x%02x%02x", to_byte(color.r), to_byte(color.g), to_byte(color.b))
 }
 
-// Hue in degrees, saturation and brightness from 0 to 1.
+// Hue in degrees, with saturation and brightness from 0 to 1.
 to_hsv :: proc(rgb: [3]f32) -> [3]f32 {
 	high := max(rgb.r, rgb.g, rgb.b)
 	low := min(rgb.r, rgb.g, rgb.b)
@@ -153,7 +153,7 @@ to_hsv :: proc(rgb: [3]f32) -> [3]f32 {
 	return {hue, spread / high if high > 0 else 0, high}
 }
 
-// A colour from a hue in degrees, and a saturation and brightness from 0 to 1.
+// A color from a hue in degrees and a saturation and brightness from 0 to 1.
 to_color_from_hsv :: proc(hue, saturation, brightness: f32) -> [4]f32 {
 	chroma := brightness * saturation
 	sector := math.mod(hue, 360) / 60
@@ -178,7 +178,7 @@ to_color_from_hsv :: proc(hue, saturation, brightness: f32) -> [4]f32 {
 	return {rgb.r + base, rgb.g + base, rgb.b + base, 1}
 }
 
-// A grey has no hue and black has no saturation, so they take those from kept.
+// A gray has no hue and black has no saturation, so they keep those from kept.
 _to_kept_hsv :: proc(rgb: [3]f32, kept: [3]f32) -> [3]f32 {
 	hsv := to_hsv(rgb)
 	if hsv[1] == 0 || hsv[2] == 0 do hsv[0] = kept[0]
@@ -194,7 +194,7 @@ _paint :: proc(box: ^ui.Box, hsv: [3]f32, draw: ui.Draw_Proc) {
 	box.draw = draw
 }
 
-// The pointer's place in the box, from 0 to 1 on each axis, while the pointer holds the box.
+// Pointer position in the box from 0 to 1 on each axis, while the pointer holds it.
 _to_held_ratio :: proc(box: ^ui.Box, signal: ui.Signal) -> (ratio: [2]f32, is_held: bool) {
 	size := [2]f32{box.rect.z - box.rect.x, box.rect.w - box.rect.y}
 	if !signal.is_held || box.forced != .None || size.x <= 0 || size.y <= 0 do return
@@ -240,7 +240,7 @@ _draw_hue_strip :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 		left := rect.x + f32(index) * segment
 		part := [4]f32{left, rect.y, left + segment, rect.w}
 		gradient := [2]f32{0, 1}
-		// The end segments overlap their neighbours by the radius, so only the strip's ends round.
+		// End segments overlap their neighbors by the radius so only the strip's ends round.
 		if index == 0 {
 			part.z += radius
 			gradient = {0, segment / (segment + radius)}

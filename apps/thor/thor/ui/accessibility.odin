@@ -8,8 +8,8 @@ Accessible :: struct {
 	depth: int,
 }
 
-// Every box with a role or text that shows, in build order. A control's label covers its insides,
-// and a text that repeats its parent's label, such as a row's, stays out.
+// Every box with a role or visible text, in build order. A control's label covers its insides,
+// and text that repeats its parent's label, as a row's does, stays out.
 _list_accessible :: proc(roots: []^Box, found: ^[dynamic]Accessible) {
 	for root in roots {
 		for child := root.first; child != nil; child = child.next do _add_accessible(child, 0, "", found)

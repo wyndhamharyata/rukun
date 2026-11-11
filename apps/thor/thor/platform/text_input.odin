@@ -5,7 +5,7 @@ import "core:strings"
 import NS "core:sys/darwin/Foundation"
 import "core:unicode/utf8"
 
-// Keys go to a 1-point view per window. As first responder, the Metal view gets a 0 by 0 drawable.
+// Keys go to a 1-point view per window. As first responder, the Metal view would get a 0 by 0 drawable.
 @(objc_class = "ThorInputView", objc_superclass = NS.View, objc_implement)
 Input_View :: struct {
 	using _: NS.View,
@@ -26,7 +26,7 @@ Input_View_acceptsFirstResponder :: proc "c" (self: ^Input_View) -> NS.BOOL {
 	return NS.BOOL(window != nil && window.is_text_input)
 }
 
-// The input view is first responder while a text field has the keyboard, so AppKit asks it too.
+// While a text field has the keyboard the input view is first responder, so AppKit asks it too.
 @(objc_type = Input_View, objc_implement, objc_name = "accessibilityFocusedUIElement")
 Input_View_accessibilityFocusedUIElement :: proc "c" (self: ^Input_View) -> ^NS.Object {
 	return _to_focused_element(self)

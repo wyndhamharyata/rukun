@@ -8,17 +8,17 @@ import CA "vendor:darwin/QuartzCore"
 
 TITLE_HIDDEN :: 1
 MATERIAL_SELECTION :: 4
-// NSVisualEffectStateActive, which keeps the blur when the window is not key.
+// NSVisualEffectStateActive keeps the blur visible when the window is not key.
 BLUR_ALWAYS_ACTIVE :: 1
 SIZE_WITH_SUPERVIEW :: 2 | 16
-// NSWindowCollectionBehaviorTransient | IgnoresCycle. Spaces, Mission Control and Cmd ` skip it.
+// NSWindowCollectionBehaviorTransient | IgnoresCycle, so Spaces, Mission Control and ⌘` skip it.
 TRANSIENT_WINDOW :: (1 << 3) | (1 << 6)
 
-// NSWindowCollectionBehavior: every Space, over full-screen apps, and out of ⌘`.
+// Joins every Space, floats over full-screen apps, and stays out of ⌘`.
 PANEL_BEHAVIOR :: NS.WindowCollectionBehavior{.CanJoinAllSpaces, .FullScreenAuxiliary, .IgnoresCycle}
 
 // NSTrackingMouseEnteredAndExited | MouseMoved | ActiveAlways | InVisibleRect.
-// A window that is not key, such as a panel, still sees the pointer.
+// A window that is not key, such as a panel, still gets pointer events.
 TRACKING_OPTIONS :: 0x01 | 0x02 | 0x80 | 0x200
 
 @(objc_class = "NSTrackingArea")
@@ -26,15 +26,15 @@ _Tracking_Area :: struct {
 	using _: NS.Object,
 }
 
-// The first call sets up the app. is_background makes an accessory app, which AeroSpace ignores.
-// A later window opens a little below and to the right of the window in front.
+// The first call sets up the app. is_background makes an accessory app, which AeroSpace skips.
+// Each later window opens a little below and right of the window in front.
 open_window :: proc(
 	title: string,
 	size_points, min_size_points: [2]f32,
 	on_frame: Frame_Proc,
 	is_background: bool,
 	is_blurred := false,
-	// AppKit saves the frame under this name on each move or resize. The next launch reuses it.
+	// AppKit saves the frame under this name on each move or resize, and restores it next launch.
 	frame_name := "",
 	kind := Window_Kind.Normal,
 ) -> ^Native_Window {
@@ -56,7 +56,7 @@ open_window :: proc(
 		_state.is_background = is_background
 		_state.app = NS.Application.sharedApplication()
 		_state.app->setActivationPolicy(.Accessory if is_background else .Regular)
-		// run reads events in place of NSApplication's run, so this sends finishLaunching itself.
+		// run reads events instead of NSApplication's run, so this sends finishLaunching itself.
 		objc_send(nil, _state.app, "finishLaunching")
 		_state.target = objc_send(^_Target, objc_send(^_Target, _Target, "alloc"), "init")
 		_watch_appearance()
@@ -91,7 +91,7 @@ open_window :: proc(
 	window.input_view = _make_input_view()
 	content->addSubview(window.input_view)
 
-	// After the views exist, so that their autoresizing follows the restored frame.
+	// Restores the frame after the views exist, so their autoresizing follows it.
 	if frame_name != "" {
 		ns_name := NS.String.alloc()->initWithOdinString(frame_name)
 		defer ns_name->release()
@@ -129,7 +129,7 @@ _make_ns_window :: proc(
 		ns_window->setTitlebarAppearsTransparent(true)
 		objc_send(nil, ns_window, "setTitleVisibility:", NS.Integer(TITLE_HIDDEN))
 	case .Panel:
-		// A utility panel's small title bar, over the content rather than on it.
+		// A utility panel's small title bar, which sits over the content instead of on it.
 		style := NS.WindowStyleMask{.Titled, .Closable, .Resizable, .UtilityWindow, .NonactivatingPanel}
 		ns_window = objc_send(^NS.Window, NS.Panel, "alloc")->initWithContentRect(content_rect, style, .Buffered, false)
 		ns_window->setTitle(ns_title)
@@ -148,7 +148,7 @@ _make_ns_window :: proc(
 		NS.Size{NS.Float(min_size_points.x), NS.Float(min_size_points.y)},
 	)
 
-	// An opaque window spares the window server the blur and the desktop behind it.
+	// An opaque window lets the window server skip the blur and the desktop behind it.
 	ns_window->setOpaque(!is_blurred)
 	background := objc_send(^NS.Color, NS.Color, "blackColor")
 	if is_blurred do background = objc_send(^NS.Color, NS.Color, "clearColor")
@@ -179,7 +179,7 @@ _make_metal_layer :: proc(device: ^MTL.Device) -> ^CA.MetalLayer {
 	layer->setOpaque(false)
 	layer->setFramebufferOnly(true)
 
-	// render converts thor's sRGB colours to Display P3, so a P3 colour can show at full strength.
+	// render converts thor's sRGB colors to Display P3, so P3 colors show at full strength.
 	p3 := mac.CGColorSpaceCreateWithName(mac.kCGColorSpaceDisplayP3)
 	defer mac.CGColorSpaceRelease(p3)
 	objc_send(nil, layer, "setColorspace:", rawptr(p3))
@@ -238,7 +238,7 @@ _show_window :: proc(window: ^Native_Window, in_front: ^Native_Window, is_backgr
 		} else {
 			frame := in_front.ns_window->frame()
 			top_left := NS.Point{frame.origin.x, frame.origin.y + frame.size.height}
-			// The first call returns the next cascade place. The second moves the window there.
+			// The first call returns the next cascade position; the second moves the window there.
 			next := objc_send(NS.Point, window.ns_window, "cascadeTopLeftFromPoint:", top_left)
 			objc_send(NS.Point, window.ns_window, "cascadeTopLeftFromPoint:", next)
 		}
@@ -246,7 +246,7 @@ _show_window :: proc(window: ^Native_Window, in_front: ^Native_Window, is_backgr
 
 	switch {
 	case window.kind == .Panel:
-		// Shows the panel without bringing the app in front.
+		// Shows the panel without bringing its app to the front.
 		objc_send(nil, window.ns_window, "orderFrontRegardless")
 	case is_background:
 		objc_send(nil, window.ns_window, "setCollectionBehavior:", NS.UInteger(TRANSIENT_WINDOW))

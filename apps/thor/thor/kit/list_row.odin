@@ -14,20 +14,20 @@ _Row_Kind :: enum {
 }
 
 // Sets selected^ to id on a click or when the arrow keys focus it. Children go inside the if.
-// selected^ keeps the id string, so the id must outlive the frame, such as an id from app data.
+// selected^ stores the id string, so the id must outlive the frame, such as one from app data.
 @(deferred_none = ui.pop_parent)
 list_row :: proc(id: string, selected: ^string, label := "", style: ui.Style = {}) -> bool {
 	return _build_row(id, selected, label, .List, 0, nil, style)
 }
 
-// Sets current^ to id on a click only; the arrow keys move focus but not current^.
+// Sets current^ on click only; arrow keys move focus without changing it.
 @(deferred_none = ui.pop_parent)
 nav_row :: proc(id: string, current: ^string, label := "", style: ui.Style = {}) -> bool {
 	return _build_row(id, current, label, .Nav, 0, nil, style)
 }
 
-// Selects as list_row does. A leaf gives a nil is_open. The chevron, Right and Left set is_open^.
-// The app flattens the open rows into a kit.list, so kit builds only the rows on the screen.
+// Selects as list_row does. A leaf row takes a nil is_open. The chevron, Right and Left set is_open^.
+// The app flattens open rows into a kit.list, so kit builds only the rows on screen.
 @(deferred_none = ui.pop_parent)
 tree_row :: proc(id: string, selected: ^string, label := "", depth := 0, is_open: ^bool = nil, style: ui.Style = {}) -> bool {
 	return _build_row(id, selected, label, .Tree, depth, is_open, style)

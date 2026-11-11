@@ -25,7 +25,7 @@ _SIZE_STEPS_PER_PIXEL :: 4
 _PADDING_PIXELS :: 1
 _BYTES_PER_PIXEL :: 4
 _BITS_PER_CHANNEL :: 8
-// kCGImageAlphaPremultipliedLast, from CoreGraphics' CGImageAlphaInfo.
+// kCGImageAlphaPremultipliedLast from CoreGraphics' CGImageAlphaInfo.
 _ALPHA_PREMULTIPLIED_LAST :: 1
 // NSFontWeightMedium.
 _SYMBOL_WEIGHT :: 0.23

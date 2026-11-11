@@ -9,20 +9,20 @@ _TEXT_FIELD_FONT_SIZE :: 13
 
 _FOCUS_BORDER_ALPHA :: 3 * SOFT_OPACITY
 
-// Gives the input keyboard focus the next time kit builds it.
+// Focuses the input the next time kit builds it.
 focus_input :: proc(input: ^Text_Input) {
 	_take_keyboard(input)
 	_window.focus_request = input
 }
 
-// True while a text field or editor of this window has the keyboard, so the app's shortcuts wait.
+// True while a text field or editor in this window has the keyboard, so app shortcuts wait.
 has_focused_input :: proc() -> bool {
 	_, is_focused := _find_focused_input()
 
 	return is_focused
 }
 
-// Gives the frame's typing to the focused input. app calls it as each frame begins.
+// Routes the frame's typing to the focused input; app calls it as each frame begins.
 _apply_text_events :: proc(events: []platform.Event) {
 	for input in _window.inputs {
 		input.is_changed = false
@@ -42,7 +42,7 @@ _apply_text_events :: proc(events: []platform.Event) {
 	for input in _window.inputs do input._is_hovered = false
 }
 
-// A press gives the keyboard to the input under it, and takes it from the others.
+// A press gives the keyboard to the input under it and takes it from the rest.
 _focus_hovered_input :: proc() {
 	for input in _window.inputs {
 		if input._is_hovered {
@@ -53,7 +53,7 @@ _focus_hovered_input :: proc() {
 	}
 }
 
-// app calls it as each frame ends. macOS places the input method's window at the caret.
+// app calls it as each frame ends, so macOS can place the input method's window at the caret.
 _finish_text_fields :: proc() {
 	platform.set_text_input(has_focused_input(), _window.caret_rect)
 }
@@ -87,7 +87,7 @@ text_field :: proc(
 		flags            = {.Clickable, .No_Focus_Ring},
 	}
 	merged := ui.merge(base, style)
-	// A tone, such as .Error for an invalid field, shows in the border, focused or not.
+	// A tone, such as .Error for an invalid field, shows in the border whether focused or not.
 	tone_color, _ := tone_colors(tone)
 	merged.border_width = shape.border if is_focused || tone != .Base else 0
 	merged.border_color = tone_color if tone != .Base else with_opacity(colors.primary, _FOCUS_BORDER_ALPHA)
@@ -95,7 +95,7 @@ text_field :: proc(
 	box.role, box.label, box.value = .Text_Field, placeholder, to_input_text(input)
 
 	signal := ui.signal(box)
-	// A press focuses the input under the pointer, never one forced to look hovered.
+	// A press focuses the input under the pointer, never one only forced to look hovered.
 	input._is_hovered = signal.is_hovered && box.forced == .None
 	if box.forced == .None do _follow_input_focus(input, box, signal.is_focused)
 
@@ -138,13 +138,13 @@ text_field :: proc(
 			if len(shaped.lines) > 0 do left = font.caret_x(shaped.lines[0], font.to_utf16_index(shown, at)) / pixels
 			height := text.rect.w - text.rect.y
 			ui.box("", {width = ui.points(1.5), height = ui.points(height), background = colors.primary, position = {left, 0}, flags = {.Floating}})
-			// Only a real focus moves the input method's window, not a forced state.
+			// Only real focus moves the input method window, never a forced state.
 			if input.is_focused {
 				_window.caret_rect = ui._to_window_points([4]f32{line.rect.x + left, line.rect.y, line.rect.x + left + 2, line.rect.y + height})
 			}
 		}
 
-		// After the press, only a drag moves the caret, so the keys can move it during a hold.
+		// After the first press, only a drag moves the caret, so keys can move it during a hold.
 		_, is_press := ui._pressed_at()
 		if signal.is_held && box.forced == .None && (is_press || signal.is_dragged) {
 			offset := 0
@@ -160,7 +160,7 @@ text_field :: proc(
 	return signal
 }
 
-// 1, 2 or 3 presses place the caret, select a word or select all. A drag extends in that unit.
+// One press places the caret, two select a word, three select all; a drag extends in that unit.
 _apply_field_pointer :: proc(input: ^Text_Input, offset: int) {
 	_, is_press := ui._pressed_at()
 	if is_press {

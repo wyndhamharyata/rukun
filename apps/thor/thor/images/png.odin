@@ -2,7 +2,7 @@ package images
 
 import "../mac"
 
-// pixels are BGRA with premultiplied alpha, as the renderer makes them.
+// pixels are BGRA with premultiplied alpha, the layout the renderer produces.
 write_png :: proc(path: string, pixels: []u8, size: [2]int) -> bool {
 	assert(len(pixels) == size.x * size.y * _BYTES_PER_PIXEL, "write_png takes 4 bytes a pixel")
 
@@ -38,7 +38,7 @@ write_png :: proc(path: string, pixels: []u8, size: [2]int) -> bool {
 	return bool(mac.CGImageDestinationFinalize(destination))
 }
 
-// It returns pixels in the write_png layout, from the temp allocator.
+// Returns pixels in the write_png layout, from the temp allocator.
 read_png :: proc(path: string) -> (pixels: []u8, size: [2]int, ok: bool) {
 	url := mac.CFURLCreateFromFileSystemRepresentation(nil, raw_data(path), len(path), false)
 	defer mac.CFRelease(url)

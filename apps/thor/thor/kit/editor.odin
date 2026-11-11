@@ -14,42 +14,42 @@ import "core:unicode/utf8"
 _EDITOR_PADDING_POINTS :: 8
 _EDITOR_FONT_SIZE :: 13
 _EDITOR_BLINK_SECONDS :: 0.5
-// The width of the selection over a line break.
+// The width of a selection that covers only a line break.
 _EDITOR_EMPTY_SELECTION_POINTS :: 6
 _EDITOR_GUTTER_GAP_POINTS :: 12
 
-// The app keeps it outside its frame procedure. Kit owns the fields after step.
+// The app keeps it outside its frame proc; kit owns the fields after step.
 Text_Input :: struct {
 	text:                 [dynamic]u8,
-	// Byte offsets: where the selection began, and the caret. They are equal with no selection.
+	// Byte offsets of the selection start and the caret; equal with no selection.
 	anchor:               int,
 	caret:                int,
-	// The text that the input method composes. It shows at the caret until the person confirms it.
+	// The text the input method is composing, shown at the caret until the person confirms it.
 	marked:               string,
 	is_focused:           bool,
-	// True on the frame that the text changed, the person pressed Return in a field, or Escape.
+	// Set on the frame the text changed, or the person pressed Return or Escape in a field.
 	is_changed:           bool,
 	is_submitted:         bool,
 	is_cancelled:         bool,
-	// A field that keeps the keyboard when the person clicks elsewhere.
+	// Keeps the keyboard when the person clicks elsewhere.
 	is_keeping_focus:     bool,
-	// Up and Down set step to -1 or 1 for a list beside the field, and do not move the caret.
+	// Up and Down set step to -1 or 1 for a list beside the field, instead of moving the caret.
 	is_taking_up_down:    bool,
 	step:                 int,
 	_history:             _History,
 	_is_hovered:          bool,
 	_is_multiline:        bool,
-	// Byte offsets of the line starts. Kit builds them again after a change.
+	// The byte offset of each line start. Kit rebuilds them after a change.
 	_line_starts:         [dynamic]int,
 	_is_line_stale:       bool,
-	// The x, in pixels, that Up and Down keep while they move the caret.
+	// The x in pixels that Up and Down hold while moving the caret.
 	_goal_x:              f32,
 	_has_goal:            bool,
 	// Line and page moves wait for the build, which has the shapes of the lines.
 	_moved_lines:         int,
 	_moved_pages:         int,
 	_is_moving_selection: bool,
-	// The keyboard or typing moved the caret, so the view scrolls to it.
+	// Set when the keyboard or typing moved the caret, so the view scrolls to it.
 	_is_caret_moved:      bool,
 	// When the caret last moved. It stays steady for a moment after a move.
 	_moved_at:            time.Tick,
@@ -58,7 +58,7 @@ Text_Input :: struct {
 	_drag_origin:         [2]int,
 }
 
-// A run of the text in one colour, from a highlighter that the app runs.
+// A run of text in one color, from a highlighter the app runs.
 Span :: struct {
 	range: [2]int,
 	color: [4]f32,
@@ -67,7 +67,7 @@ Span :: struct {
 _Line_Paint :: struct {
 	shown:      string,
 	line_start: int,
-	// The range of the input method's text in shown. No span colours it.
+	// The composing text's range in shown; no span colors it.
 	marked:     [2]int,
 	is_ascii:   bool,
 	spans:      []Span,
@@ -82,7 +82,7 @@ _Built_Line :: struct {
 	shown:   string,
 }
 
-// The text of the input. Typing changes it, so copy it to keep it.
+// The input's text. Typing changes it, so copy the result to keep it.
 to_input_text :: proc(input: ^Text_Input) -> string {
 	return string(input.text[:])
 }
@@ -106,7 +106,7 @@ destroy_input :: proc(input: ^Text_Input) {
 	input^ = {}
 }
 
-// Tab types a tab, and Ctrl-Tab moves the focus on. A zero height in style fills the parent.
+// Tab types a tab and Ctrl-Tab moves focus on. A zero height in style fills the parent.
 text_editor :: proc(
 	id: string,
 	input: ^Text_Input,
@@ -191,7 +191,7 @@ text_editor :: proc(
 	if input._is_caret_moved do _scroll_to_caret(input, box, built[:], shaper)
 
 	if is_focused && input.is_focused && platform.is_key_window() {
-		// The caret blinks, and shows steady for a moment after it moves.
+		// The caret blinks, holding steady for a moment after each move.
 		seconds := time.duration_seconds(time.tick_diff(input._moved_at, platform.now()))
 		ui.request_frame_after(_EDITOR_BLINK_SECONDS - math.mod(seconds, _EDITOR_BLINK_SECONDS))
 	}
@@ -202,7 +202,7 @@ text_editor :: proc(
 
 _Shaper :: struct {
 	font:        font.Font,
-	// In points. It is 0 before the first layout, and then no line wraps.
+	// In points. Before the first layout it is 0, so no line wraps.
 	width:       f32,
 	line_height: f32,
 }
@@ -219,7 +219,7 @@ _measure :: proc(text: string, look: ui.Style) -> f32 {
 	return math.ceil(shaped.size_pixels.x / ui.to_pixels(1))
 }
 
-// The line's text with the input method's text at the caret, and the range of that text.
+// The line's text with any composing text at the caret, and the range of that text.
 _to_shown_line :: proc(input: ^Text_Input, index: int, is_focused: bool) -> (shown: string, marked: [2]int) {
 	start, end := _to_line_range(input, index)
 	text := string(input.text[start:end])
@@ -249,7 +249,7 @@ _build_line :: proc(
 	ui.push_parent(content)
 	defer ui.pop_parent()
 
-	// The selection goes under the text. A selection that runs past the line also covers its end.
+	// The selection sits under the text. A selection that runs past the line also covers its end.
 	if selection[0] != selection[1] && selection[0] <= end && selection[1] >= start {
 		from := font.to_utf16_index(shown, max(selection[0], start) - start)
 		to := font.to_utf16_index(shown, min(selection[1], end) - start)
@@ -293,7 +293,7 @@ _build_line :: proc(
 		text_box.data = paint
 	}
 
-	// A line under the input method's text.
+	// A line under the input method's composing text.
 	if marked[0] >= 0 {
 		for line in shaped.lines {
 			from := font.to_utf16_index(shown, marked[0])
@@ -344,7 +344,7 @@ _to_span_color :: proc(utf16_index: int, data: rawptr) -> [4]f32 {
 	return color
 }
 
-// The caret before byte at, in points from the top left. At a wrap, it starts the next line.
+// The caret before byte at, in points from the top left; at a wrap it starts the next line.
 _to_caret_place :: proc(shaped: ^font.Shaped_Text, shown: string, at: int, line_height: f32) -> (left, top: f32) {
 	if len(shaped.lines) == 0 do return 0, 0
 
@@ -368,7 +368,7 @@ _is_caret_shown :: proc(input: ^Text_Input) -> bool {
 	return int(seconds / _EDITOR_BLINK_SECONDS) % 2 == 0
 }
 
-// The byte offset of the caret place nearest point, among the lines that kit built this frame.
+// The byte offset of the caret place nearest point, among the lines built this frame.
 _to_offset_at :: proc(input: ^Text_Input, built: []_Built_Line, point: [2]f32, shaper: _Shaper) -> int {
 	if len(built) == 0 do return len(input.text)
 
@@ -431,7 +431,7 @@ _apply_pointer :: proc(input: ^Text_Input, built: []_Built_Line, shaper: _Shaper
 	}
 	input._has_goal = false
 	input._moved_at = platform.now()
-	// Kit built the selection above from the old one.
+	// Kit already built the selection above from the old one.
 	ui.request_frame()
 }
 
@@ -455,7 +455,7 @@ _scroll_to_caret :: proc(input: ^Text_Input, box: ^ui.Box, built: []_Built_Line,
 		return
 	}
 
-	// The line is off screen: put its estimated top in the middle of the view.
+	// The line is off screen, so center its estimated top in the view.
 	list_box := ui.find_box("lines", box)
 	estimated := f32(line) * shaper.line_height
 	if list_box != nil {
@@ -472,7 +472,7 @@ _scroll_to_caret :: proc(input: ^Text_Input, box: ^ui.Box, built: []_Built_Line,
 	ui.request_frame()
 }
 
-// Up, Down, Page Up and Page Down move the caret here, because they need the shapes of the lines.
+// Up, Down, Page Up and Page Down move the caret here, since they need the line shapes.
 _resolve_vertical_move :: proc(input: ^Text_Input, shaper: _Shaper, view_height: f32) {
 	lines := input._moved_lines
 	if input._moved_pages != 0 {
@@ -518,7 +518,7 @@ _resolve_vertical_move :: proc(input: ^Text_Input, shaper: _Shaper, view_height:
 			offset = start
 		} else {
 			index := font.index_at_x(shaped.lines[visual], input._goal_x)
-			// The end of a wrapped line is the start of the next one. Stay on this line.
+			// A wrapped line ends where the next one starts, so stay on this line.
 			if visual < len(shaped.lines) - 1 && index >= shaped.lines[visual].utf16_range[1] do index -= 1
 			offset = start + font.to_byte_index(shown, index)
 		}
@@ -571,7 +571,7 @@ _to_line_starts :: proc(input: ^Text_Input) -> []int {
 	return input._line_starts[:]
 }
 
-// The line's bytes, without its line break.
+// The line's byte range, without its line break.
 _to_line_range :: proc(input: ^Text_Input, line: int) -> (start, end: int) {
 	starts := _to_line_starts(input)
 	start = starts[line]
@@ -589,7 +589,7 @@ _to_line_range_with_break :: proc(input: ^Text_Input, line: int) -> (start, end:
 _to_line_of :: proc(input: ^Text_Input, offset: int) -> int {
 	starts := _to_line_starts(input)
 	index, _ := slice.binary_search(starts, offset)
-	// binary_search gives the insert place. A start that equals offset begins the line.
+	// binary_search returns the insert place. A start equal to offset begins the line.
 	if index < len(starts) && starts[index] == offset do return index
 
 	return max(0, index - 1)
@@ -672,7 +672,7 @@ _to_next_rune :: proc(input: ^Text_Input, offset: int) -> int {
 	return offset + size
 }
 
-// Keeps the change in the undo history.
+// Applies the change and keeps it in the undo history.
 _edit :: proc(input: ^Text_Input, start, end: int, text: string, is_typing: bool) {
 	before := [2]int{input.anchor, input.caret}
 	caret := _replace_text(&input._history, &input.text, start, end, text, before, is_typing)
@@ -711,7 +711,7 @@ _apply_input_event :: proc(input: ^Text_Input, event: platform.Event) {
 	case platform.Text_Insert:
 		delete(input.marked)
 		input.marked = ""
-		// Return comes as a command, never as text.
+		// Return arrives as a command, never as text.
 		if typed.text != "\r" && typed.text != "\n" do _edit(input, selection[0], selection[1], typed.text, true)
 	case platform.Text_Marked:
 		if selection[0] != selection[1] do _edit(input, selection[0], selection[1], "", false)
@@ -722,7 +722,7 @@ _apply_input_event :: proc(input: ^Text_Input, event: platform.Event) {
 	case platform.Key_Press:
 		if .Command not_in typed.modifiers do return
 
-		// ⌘ with an arrow comes as a key press, because the input method gets no ⌘ keys.
+		// ⌘ with an arrow arrives as a key press, because the input method never sees ⌘ keys.
 		is_selecting := .Shift in typed.modifiers
 		line_start, line_end := _to_line_range(input, _to_line_of(input, input.caret))
 		#partial switch typed.key {
@@ -745,7 +745,7 @@ _apply_input_event :: proc(input: ^Text_Input, event: platform.Event) {
 			if typed.characters == "x" do _edit(input, selection[0], selection[1], "", false)
 		case "v":
 			pasted := platform.read_clipboard()
-			// A field with one line joins the lines of the clipboard.
+			// A single-line field joins pasted lines with spaces.
 			if !input._is_multiline {
 				lines, _ := strings.replace_all(strings.trim_space(pasted), "\n", " ", context.temp_allocator)
 				pasted = lines

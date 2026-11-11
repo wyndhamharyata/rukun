@@ -30,14 +30,14 @@ _apply_theme :: proc(events: []platform.Event) {
 	if !_theme.is_applied || kit.appearance != _theme.appearance do platform.set_appearance(kit.appearance)
 	is_dark := kit.appearance == .Dark || (kit.appearance == .System && platform.is_dark_appearance())
 	colors := _to_theme_colors(is_dark, platform.read_accent_color())
-	// Lines reach 3:1, the least for parts that are not text, and menus stop showing through.
+	// Lines reach 3:1, the minimum for non-text parts, and menus stop showing through.
 	if preferences.is_increasing_contrast do colors.line = ui._to_readable(colors.line, colors.base_100, 3)
 	if preferences.is_reducing_transparency do colors.popover.a = 1
 	is_same := _theme.is_applied && is_dark == _theme.is_dark && colors.primary == _theme.primary && preferences == _theme.preferences
 	_theme = {true, kit.appearance, is_dark, colors.primary, preferences}
 	if is_same do return
 
-	// Each window sets its background from it as its next frame begins.
+	// Each window picks up its background from it as its next frame begins.
 	kit.colors = colors
 	ui.request_frame()
 }

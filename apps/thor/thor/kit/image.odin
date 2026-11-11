@@ -12,8 +12,8 @@ _Image_Paint :: struct {
 	is_fading: bool,
 }
 
-// Crops to fill the box. source is a file path, or a URL that app.run's fetch_image gets.
-// Shows base_300 until the image decodes and fades in. A zero width or height fills the parent.
+// Crops to fill the box. source is a file path, or a URL fetched by app.run's fetch_image.
+// Shows base_300 while the image decodes, then fades in. A zero width or height fills the parent.
 image :: proc(source: string, style: ui.Style = {}, is_fading := true) -> ui.Signal {
 	base := ui.Style {
 		width      = ui.fill(),
@@ -36,7 +36,7 @@ _draw_image :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 	size := [2]f32{rect.z - rect.x, rect.w - rect.y}
 	if size.x <= 0 || size.y <= 0 do return
 
-	// images.watch keys its cache on the crop, so the aspect moves in quarter steps.
+	// images.watch caches by crop, so the aspect snaps to quarter steps.
 	aspect := math.floor(size.x / size.y * 4 + 0.01) / 4
 	texture, fade := images.watch(paint.source, int(math.ceil(max(size.x, size.y))), {aspect, 0.5})
 	if texture == nil do return
@@ -55,7 +55,7 @@ _draw_image :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 	)
 }
 
-// The part of the texture that fills the box with no stretching.
+// The texture region that fills the box without stretching.
 _to_fill_uv :: proc(size: [2]f32, texture: ^MTL.Texture) -> [4]f32 {
 	box_ratio := size.x / size.y
 	texture_ratio := f32(texture->width()) / f32(texture->height())

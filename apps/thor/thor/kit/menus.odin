@@ -6,7 +6,7 @@ MENU_ITEM_HEIGHT_POINTS :: 26
 
 MENU_MARGIN_POINTS :: 8
 
-// tone colours the label, such as .Error for Delete. is_selected fills the row as focus does.
+// tone colors the label, like .Error for Delete. is_selected fills the row as focus would.
 menu_item :: proc(
 	id, label: string,
 	hint := "",
@@ -35,7 +35,7 @@ menu_item :: proc(
 	}
 	item.role, item.label, item.is_on = .Menu_Item, label, is_selected
 	signal := ui.signal(item)
-	// The focused item fills with primary, as in a macOS menu.
+	// A focused item fills with primary, as in a macOS menu.
 	if signal.is_focused do item.style.background = colors.primary
 	if signal.is_activated do _close_popover()
 

@@ -22,7 +22,7 @@ install_menu :: proc(app_name: string, has_zoom: bool) {
 
 	edit := _add_menu(bar, "Edit")
 	_add_key_item(edit, "Undo", "z", .Z)
-	// An upper-case key equivalent adds Shift: ⇧⌘Z.
+	// An upper-case key equivalent adds Shift, so this is ⇧⌘Z.
 	_add_key_item(edit, "Redo", "Z", .Z)
 	NS.Menu_addItem(edit, NS.MenuItem_separatorItem())
 	_add_key_item(edit, "Cut", "x", .X)

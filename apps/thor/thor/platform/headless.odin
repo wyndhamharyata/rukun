@@ -9,11 +9,11 @@ HEADLESS_FRAME_SECONDS :: 1.0 / 60
 
 HEADLESS_START :: time.Tick{1_000_000_000_000}
 
-// macOS's default accent, which a window with no screen takes in place of the person's.
+// macOS's default accent, used by a window with no screen instead of the person's.
 HEADLESS_ACCENT :: [4]f32{0x0a / 255.0, 0x84 / 255.0, 1, 1}
 
 _headless: struct {
-	// stop_headless keeps it, because the renderer starts only once, with this device.
+	// stop_headless keeps it, because the renderer starts only once and holds this device.
 	device:    ^MTL.Device,
 	is_on:     bool,
 	now:       time.Tick,
@@ -22,7 +22,7 @@ _headless: struct {
 	clipboard: string,
 }
 
-// The time thor's animations read. With no window, a clock that moves only as frames run.
+// The clock thor's animations read. With no window, it moves only as frames run.
 now :: proc "contextless" () -> time.Tick {
 	return _headless.now if _headless.is_on else time.tick_now()
 }
@@ -32,18 +32,18 @@ is_headless :: proc "contextless" () -> bool {
 }
 
 // For headless and THOR_CAPTURE: new windows never show, and step_headless runs frames in memory.
-// is_dark replaces the system's appearance. The person's clipboard and settings stay untouched.
+// is_dark replaces the system appearance. The person's clipboard and settings stay untouched.
 start_headless :: proc(pixels_per_point: f32, is_dark: bool) {
 	if _headless.device == nil do _headless.device = MTL.CreateSystemDefaultDevice()
 	_headless.is_on = true
-	// The same start every run, so what reads the clock, such as a spinner, draws the same.
+	// The same start every run, so anything that reads the clock, such as a spinner, draws the same.
 	_headless.now = HEADLESS_START
 	_headless.is_dark = is_dark
 	_headless.scale = pixels_per_point
 	_state.odin_context = context
 }
 
-// Frees every window and stops running with no screen.
+// Frees every window and leaves headless mode.
 stop_headless :: proc() {
 	for window in _state.windows {
 		window.is_closed = true
@@ -57,7 +57,7 @@ stop_headless :: proc() {
 	}
 }
 
-// Moves the clock HEADLESS_FRAME_SECONDS and runs every open window. input gets the events.
+// Moves the clock by HEADLESS_FRAME_SECONDS and runs every open window. input gets the events.
 step_headless :: proc(input: ^Native_Window, events: ..Event) -> bool {
 	pool := NS.AutoreleasePool.alloc()->init()
 	defer pool->drain()
@@ -69,7 +69,7 @@ step_headless :: proc(input: ^Native_Window, events: ..Event) -> bool {
 	}
 
 	is_wanted := false
-	// A frame may open a window, which runs from the next step.
+	// A frame may open a window, which joins in from the next step.
 	count := len(_state.windows)
 	for index in 0 ..< count {
 		window := _state.windows[index]
@@ -88,14 +88,14 @@ step_headless :: proc(input: ^Native_Window, events: ..Event) -> bool {
 	return is_wanted
 }
 
-// True while keys arrive as text and commands for a text field. nil means the current window.
+// True while keys arrive as text and commands for a text field. A nil window means the current one.
 is_text_input :: proc(window: ^Native_Window = nil) -> bool {
 	shown := window if window != nil else current_window()
 
 	return shown != nil && shown.is_text_input
 }
 
-// Copies the event's text into the window's event arena, the same as for AppKit events.
+// Copies the event's text into the window's event arena, as AppKit events do.
 _to_kept_event :: proc(event: Event, window: ^Native_Window) -> Event {
 	allocator := _event_allocator(window)
 	#partial switch value in event {
