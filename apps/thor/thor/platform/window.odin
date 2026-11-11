@@ -57,6 +57,8 @@ Native_Window :: struct {
 	is_text_input:      bool,
 	marked_byte_count:  int,
 	caret_rect:         [4]f32,
+	accessibility:      _Accessibility,
+	glass:              _Window_Glass,
 }
 
 _state: struct {
@@ -155,6 +157,13 @@ Target_menuKey :: proc "c" (self: ^_Target, item: ^NS.MenuItem) {
 Target_menuQuit :: proc "c" (self: ^_Target, item: NS.id) {
 	context = _state.odin_context
 	quit()
+}
+
+// Element frames are in screen points, so a moved window needs new ones.
+@(objc_type = _Target, objc_implement, objc_name = "windowDidMove", objc_selector = "windowDidMove:")
+Target_windowDidMove :: proc "c" (self: ^_Target, notification: NS.id) {
+	window := _find_by_target(self)
+	if window != nil && window.accessibility.is_wanted do _request_frame_of(window)
 }
 
 @(objc_type = _Target, objc_implement, objc_name = "appearanceChanged", objc_selector = "appearanceChanged:")
@@ -435,6 +444,8 @@ _release :: proc(window: ^Native_Window) {
 	if _headless.is_on do return
 
 	objc_send(nil, window.display_link, "invalidate")
+	_release_accessibility(window)
+	_release_glass(window)
 	window.ns_window->setDelegate(nil)
 	window.ns_window->release()
 	window.target->release()

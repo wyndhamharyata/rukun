@@ -38,6 +38,8 @@ draw :: proc(
 	color_of: Color_Proc,
 	data: rawptr,
 	opacity: f32,
+	// The colour under the text, for linear blending's weight correction.
+	under: [4]f32 = {},
 ) {
 	for line in shaped.lines {
 		baseline_y := math.round(origin_pixels.y + line.baseline_y_pixels)
@@ -93,7 +95,7 @@ draw :: proc(
 			glyph_color.a *= opacity
 
 			render.push(
-				{rect = rect, uv = uv, color = glyph_color, clip = clip_pixels, kind = .Glyph},
+				{rect = rect, uv = uv, color = glyph_color, clip = clip_pixels, kind = .Glyph, under_color = under},
 				atlas.texture,
 			)
 		}

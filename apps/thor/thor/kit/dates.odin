@@ -135,7 +135,7 @@ _build_day :: proc(calendar_box: ^ui.Box, day, picked, shown, today_date: Date) 
 	case is_on:
 		text_color = colors.primary_content
 	case day == today_date:
-		text_color = _to_readable(colors.primary)
+		text_color = colors.primary
 	case !is_in_month:
 		text_color = to_faded(colors.base_content, 0.35)
 	}

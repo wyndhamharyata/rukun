@@ -29,6 +29,8 @@ Instance :: struct {
 	// Turns a Solid rect about its centre, in radians, clockwise on the screen.
 	rotation:      f32,
 	gradient_kind: Gradient_Kind,
+	// Under a glyph: with linear blending, it keeps the text's weight as Ghostty does.
+	under_color:   [4]f32,
 }
 
 // The zero value runs from color to end_color down the gradient fractions, with ease in and out.
@@ -41,12 +43,14 @@ Gradient_Flag :: enum u32 {
 	Linear,
 }
 
-#assert(size_of(Instance) == 128)
+#assert(size_of(Instance) == 144)
 
 _Batch :: struct {
 	texture:     ^MTL.Texture,
 	first_index: int,
 	count:       int,
+	// Erases what is under its instances, so glass behind the window shows through.
+	is_clear:    bool,
 }
 
 _FRAMES_IN_FLIGHT :: 3
@@ -66,12 +70,15 @@ Surface :: struct {
 	shown_batches:      [dynamic]_Batch,
 	shown_size_pixels:  [2]f32,
 	shown_upload_count: int,
+	shown_color_flags:  u32,
 }
 
 _state: struct {
 	device:        ^MTL.Device,
 	queue:         ^MTL.CommandQueue,
-	pipeline:      ^MTL.RenderPipelineState,
+	// By [is linear][is clear].
+	pipelines:     [2][2]^MTL.RenderPipelineState,
+	color_flags:   u32,
 	sampler:       ^MTL.SamplerState,
 	white_texture: ^MTL.Texture,
 	// The current frame, for the target in use.
@@ -136,22 +143,25 @@ start :: proc(device: ^MTL.Device) {
 	descriptor->setVertexFunction(library->newFunctionWithName(NS.AT("vertex_main")))
 	descriptor->setFragmentFunction(library->newFunctionWithName(NS.AT("fragment_main")))
 
-	// The shaders return premultiplied colour.
+	// The shaders return premultiplied colour. A clear pipeline keeps only the part of the colour
+	// under each shape that the shape does not cover. An sRGB target blends in linear light.
 	attachment := descriptor->colorAttachments()->object(0)
-	attachment->setPixelFormat(.BGRA8Unorm)
 	attachment->setBlendingEnabled(true)
-	attachment->setSourceRGBBlendFactor(.One)
 	attachment->setDestinationRGBBlendFactor(.OneMinusSourceAlpha)
-	attachment->setSourceAlphaBlendFactor(.One)
 	attachment->setDestinationAlphaBlendFactor(.OneMinusSourceAlpha)
-
-	pipeline, pipeline_error := device->newRenderPipelineStateWithDescriptor(descriptor)
-
-	if pipeline == nil {
-		fmt.panicf("render: no pipeline: %s", pipeline_error->localizedDescription()->odinString())
+	for is_linear in 0 ..< 2 {
+		attachment->setPixelFormat(.BGRA8Unorm_sRGB if is_linear == 1 else .BGRA8Unorm)
+		for is_clear in 0 ..< 2 {
+			source := MTL.BlendFactor.Zero if is_clear == 1 else .One
+			attachment->setSourceRGBBlendFactor(source)
+			attachment->setSourceAlphaBlendFactor(source)
+			pipeline, pipeline_error := device->newRenderPipelineStateWithDescriptor(descriptor)
+			if pipeline == nil {
+				fmt.panicf("render: no pipeline: %s", pipeline_error->localizedDescription()->odinString())
+			}
+			_state.pipelines[is_linear][is_clear] = pipeline
+		}
 	}
-
-	_state.pipeline = pipeline
 
 	sampler_descriptor := MTL.SamplerDescriptor.alloc()->init()
 	sampler_descriptor->setMinFilter(.Linear)
@@ -190,10 +200,41 @@ upload_texture :: proc(texture: ^MTL.Texture, region: [4]int, pixels: rawptr, by
 	intrinsics.atomic_add(&_state.upload_count, 1)
 }
 
+// is_linear blends in linear light. is_p3 writes Display P3 for a layer in that colour space.
+set_color_mode :: proc(is_linear, is_p3: bool) {
+	_state.color_flags = (1 if is_linear else 0) | (2 if is_p3 else 0)
+}
+
+_to_pixel_format :: proc() -> MTL.PixelFormat {
+	return .BGRA8Unorm_sRGB if _state.color_flags & 1 != 0 else .BGRA8Unorm
+}
+
 begin_frame :: proc(size_pixels: [2]f32) {
 	_state.surface.size_pixels = size_pixels
+	layer := _state.surface.layer
+	if layer != nil && layer->pixelFormat() != _to_pixel_format() do layer->setPixelFormat(_to_pixel_format())
 	clear(&_state.instances)
 	clear(&_state.batches)
+}
+
+// One instance with the texture it draws with, as ui keeps a box's last frame to draw it again.
+Pushed :: struct {
+	instance: Instance,
+	texture:  ^MTL.Texture,
+}
+
+pushed_count :: proc() -> int {
+	return len(_state.instances)
+}
+
+// Appends every instance pushed from index first on, with its texture.
+read_pushed :: proc(first: int, into: ^[dynamic]Pushed) {
+	for batch in _state.batches {
+		if batch.is_clear do continue
+		for index in max(first, batch.first_index) ..< batch.first_index + batch.count {
+			append(into, Pushed{_state.instances[index], batch.texture})
+		}
+	}
 }
 
 push :: proc(instance: Instance, texture: ^MTL.Texture = nil) {
@@ -201,16 +242,25 @@ push :: proc(instance: Instance, texture: ^MTL.Texture = nil) {
 
 	texture := texture if texture != nil else _state.white_texture
 	batch_count := len(_state.batches)
+	is_after_clear := batch_count > 0 && _state.batches[batch_count - 1].is_clear
 	is_same_texture := batch_count > 0 && _state.batches[batch_count - 1].texture == texture
-	can_join := is_same_texture || (batch_count > 0 && instance.kind == .Solid)
+	can_join := !is_after_clear && (is_same_texture || (batch_count > 0 && instance.kind == .Solid))
 
 	if can_join {
 		_state.batches[batch_count - 1].count += 1
 	} else {
-		append(&_state.batches, _Batch{texture, len(_state.instances), 1})
+		append(&_state.batches, _Batch{texture, len(_state.instances), 1, false})
 	}
 
 	append(&_state.instances, instance)
+}
+
+// Erases a rounded rect of what the frame drew so far, in pixels.
+push_clear :: proc(rect: [4]f32, corner_radius: f32, clip: [4]f32) {
+	if len(_state.instances) >= _MAX_INSTANCE_COUNT do return
+
+	append(&_state.batches, _Batch{_state.white_texture, len(_state.instances), 1, true})
+	append(&_state.instances, Instance{rect = rect, color = {0, 0, 0, 1}, corner_radius = corner_radius, clip = clip})
 }
 
 _encode_pass :: proc(
@@ -226,7 +276,10 @@ _encode_pass :: proc(
 	color->setStoreAction(.Store)
 
 	encoder := command_buffer->renderCommandEncoderWithDescriptor(pass)
-	encoder->setRenderPipelineState(_state.pipeline)
+	is_linear := 1 if _state.color_flags & 1 != 0 else 0
+	encoder->setRenderPipelineState(_state.pipelines[is_linear][0])
+	flags := _state.color_flags
+	encoder->setFragmentBytes(([^]byte)(&flags)[:size_of(flags)], 1)
 	encoder->setVertexBuffer(buffer, 0, 0)
 	encoder->setFragmentBuffer(buffer, 0, 0)
 
@@ -234,7 +287,12 @@ _encode_pass :: proc(
 	encoder->setVertexBytes(([^]byte)(&viewport)[:size_of(viewport)], 1)
 	encoder->setFragmentSamplerState(_state.sampler, 0)
 
+	is_clearing := false
 	for batch in _state.batches {
+		if batch.is_clear != is_clearing {
+			is_clearing = batch.is_clear
+			encoder->setRenderPipelineState(_state.pipelines[is_linear][1 if is_clearing else 0])
+		}
 		encoder->setFragmentTexture(batch.texture, 0)
 		encoder->drawPrimitivesWithInstances(
 			.TriangleStrip,
@@ -255,7 +313,7 @@ read_pixels :: proc(allocator := context.allocator) -> (pixels: []u8, size: [2]i
 
 	size = {int(target.size_pixels.x), int(target.size_pixels.y)}
 	descriptor := MTL.TextureDescriptor.texture2DDescriptorWithPixelFormat(
-		.BGRA8Unorm,
+		_to_pixel_format(),
 		NS.UInteger(size.x),
 		NS.UInteger(size.y),
 		false,
@@ -283,7 +341,7 @@ read_pixels :: proc(allocator := context.allocator) -> (pixels: []u8, size: [2]i
 _is_same_as_shown :: proc(target: ^Surface, upload_count: int) -> bool {
 	batch_bytes := mem.slice_to_bytes(_state.batches[:])
 	instance_bytes := mem.slice_to_bytes(_state.instances[:])
-	is_same_size := target.size_pixels == target.shown_size_pixels
+	is_same_size := target.size_pixels == target.shown_size_pixels && _state.color_flags == target.shown_color_flags
 	is_unchanged := upload_count == target.shown_upload_count
 	is_same_batches := mem.compare(batch_bytes, mem.slice_to_bytes(target.shown_batches[:])) == 0
 	is_same_instances :=
@@ -339,4 +397,5 @@ end_frame :: proc(drawable: ^CA.MetalDrawable) {
 	texture := drawable->texture()
 	target.shown_size_pixels = {f32(texture->width()), f32(texture->height())}
 	target.shown_upload_count = upload_count
+	target.shown_color_flags = _state.color_flags
 }

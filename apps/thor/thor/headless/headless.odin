@@ -209,8 +209,13 @@ tree :: proc(with_rects := false, window := app.MAIN_WINDOW) -> string {
 	look := "dark" if app._theme.is_dark else "light"
 	name := "window" if window == app.MAIN_WINDOW else fmt.tprintf("window %q", window)
 	fmt.sbprintf(&builder, "%s %.0f×%.0f %s %.0f%%\n", name, size.x, size.y, look, shown._zoom.shown * 100)
-	for root in _to_roots(shown) {
-		for child := root.first; child != nil; child = child.next do _write_box(&builder, child, 1, with_rects, "")
+	found := make([dynamic]ui.Accessible, context.temp_allocator)
+	roots := _to_roots(shown)
+	ui._list_accessible(roots[:], &found)
+	for item in found {
+		for _ in 0 ..= item.depth do strings.write_string(&builder, "  ")
+		strings.write_string(&builder, _to_line(item.box, with_rects))
+		strings.write_byte(&builder, '\n')
 	}
 
 	return strings.to_string(builder)
@@ -332,7 +337,7 @@ _to_input :: proc(
 	box := find(target, loc)
 	if box == nil do return
 
-	visible := _to_shown_rect(box)
+	visible := ui._to_shown_rect(box)
 	if visible.z <= visible.x || visible.w <= visible.y {
 		log.errorf("headless: %s is off screen, so the test can't point at it", _to_line(box, false), location = loc)
 		return
@@ -343,10 +348,6 @@ _to_input :: proc(
 	middle := [2]f32{(visible.x + visible.z) / 2, (visible.y + visible.w) / 2}
 
 	return shown, middle * shown._zoom.shown, true
-}
-
-_to_shown_rect :: proc(box: ^ui.Box) -> [4]f32 {
-	return {max(box.rect.x, box.clip.x), max(box.rect.y, box.clip.y), min(box.rect.z, box.clip.z), min(box.rect.w, box.clip.w)}
 }
 
 _open_windows :: proc() -> []^app.Window {
@@ -388,34 +389,11 @@ _window_of :: proc(box: ^ui.Box) -> ^app.Window {
 	return nil
 }
 
-_to_role :: proc(box: ^ui.Box) -> (ui.Role, string) {
-	if box.role != .None do return box.role, box.label
-	if box.text != "" do return .Text, box.text
-
-	return .None, ""
-}
-
-// A control's label covers its insides, such as a button's text and icon, so the tree skips them.
-_is_control :: proc(role: ui.Role) -> bool {
-	#partial switch role {
-	case .Button, .Checkbox, .Toggle, .Text_Field, .Menu_Item, .Toast, .Slider, .Image, .Text, .Radio, .Tab, .Pop_Up, .Progress, .Tooltip:
-		return true
-	}
-
-	return false
-}
-
-_is_shown :: proc(box: ^ui.Box) -> bool {
-	shown := _to_shown_rect(box)
-
-	return box.style.fade < 1 && shown.z > shown.x && shown.w > shown.y
-}
-
 _find_labelled :: proc(box: ^ui.Box, label: string, found: ^[dynamic]^ui.Box) {
 	for child := box.first; child != nil; child = child.next {
-		role, child_label := _to_role(child)
+		role, child_label := ui._to_role(child)
 		if role != .None && child_label == label do append(found, child)
-		if !_is_control(role) do _find_labelled(child, label, found)
+		if !ui._is_control(role) do _find_labelled(child, label, found)
 	}
 }
 
@@ -426,27 +404,9 @@ _find_with_id :: proc(box: ^ui.Box, id: string, found: ^[dynamic]^ui.Box) {
 	}
 }
 
-// Skips a text that repeats parent_label, the label of the parent element, such as a row's label.
-_write_box :: proc(builder: ^strings.Builder, box: ^ui.Box, depth: int, with_rects: bool, parent_label: string) {
-	if !_is_shown(box) do return
-
-	role, label := _to_role(box)
-	if role == .Text && box.role == .None && label == parent_label do return
-	if role != .None {
-		for _ in 0 ..< depth do strings.write_string(builder, "  ")
-		strings.write_string(builder, _to_line(box, with_rects))
-		strings.write_byte(builder, '\n')
-		if _is_control(role) do return
-	}
-
-	inner := depth + 1 if role != .None else depth
-	inner_label := label if role != .None else parent_label
-	for child := box.first; child != nil; child = child.next do _write_box(builder, child, inner, with_rects, inner_label)
-}
-
 // One element as the tree shows it: `button "Save" focused`.
 _to_line :: proc(box: ^ui.Box, with_rects: bool) -> string {
-	role, label := _to_role(box)
+	role, label := ui._to_role(box)
 	builder := strings.builder_make(context.temp_allocator)
 	strings.write_string(&builder, strings.to_lower(fmt.tprint(role), context.temp_allocator))
 	fmt.sbprintf(&builder, " %q", label)

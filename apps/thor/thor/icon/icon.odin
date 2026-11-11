@@ -60,7 +60,7 @@ start :: proc() {
 	_state.atlas = render.make_texture({_ATLAS_SIZE_PIXELS, _ATLAS_SIZE_PIXELS}, .R8Unorm)
 }
 
-draw :: proc(name: string, size_pixels: f32, rect, clip: [4]f32, color: [4]f32) {
+draw :: proc(name: string, size_pixels: f32, rect, clip: [4]f32, color: [4]f32, under: [4]f32 = {}) {
 	key := [2]u64{hash.fnv64a(transmute([]u8)name), u64(size_pixels * _SIZE_STEPS_PER_PIXEL)}
 	region, ok := _state.regions[key]
 
@@ -86,6 +86,7 @@ draw :: proc(name: string, size_pixels: f32, rect, clip: [4]f32, color: [4]f32) 
 			color = color,
 			clip = clip,
 			kind = .Glyph,
+			under_color = under,
 		},
 		_state.atlas,
 	)

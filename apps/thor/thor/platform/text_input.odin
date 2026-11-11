@@ -26,6 +26,12 @@ Input_View_acceptsFirstResponder :: proc "c" (self: ^Input_View) -> NS.BOOL {
 	return NS.BOOL(window != nil && window.is_text_input)
 }
 
+// The input view is first responder while a text field has the keyboard, so AppKit asks it too.
+@(objc_type = Input_View, objc_implement, objc_name = "accessibilityFocusedUIElement")
+Input_View_accessibilityFocusedUIElement :: proc "c" (self: ^Input_View) -> ^NS.Object {
+	return _to_focused_element(self)
+}
+
 @(objc_type = Input_View, objc_implement, objc_name = "keyDown", objc_selector = "keyDown:")
 Input_View_keyDown :: proc "c" (self: ^Input_View, event: ^NS.Event) {
 	object := cast(^NS.Object)event

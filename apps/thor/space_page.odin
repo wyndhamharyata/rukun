@@ -119,7 +119,7 @@ to_card_style :: proc(changes: ui.Style) -> ui.Style {
 		corner_radius = 8,
 		background    = kit.to_color(CARD_COLOR),
 		border_width  = 1,
-		border_color  = kit.to_faded(kit.colors.base_content, kit.LINE_OPACITY),
+		border_color  = kit.colors.line,
 	}
 
 	return ui.merge(card, changes)

@@ -21,6 +21,18 @@ _NS_Color_Space :: struct {
 	using _: NS.Object,
 }
 
+@(objc_class = "NSWorkspace")
+_NS_Workspace :: struct {
+	using _: NS.Object,
+}
+
+// System Settings > Accessibility > Display.
+Preferences :: struct {
+	is_reducing_motion:       bool,
+	is_increasing_contrast:   bool,
+	is_reducing_transparency: bool,
+}
+
 @(objc_class = "NSDistributedNotificationCenter")
 _NS_Distributed_Center :: struct {
 	using _: NS.Object,
@@ -68,11 +80,26 @@ read_accent_color :: proc() -> [4]f32 {
 	}
 }
 
-// macOS posts these when the appearance or the accent changes in System Settings.
+// With no screen, every setting is off, so tests draw the same on every Mac.
+read_preferences :: proc() -> Preferences {
+	if _headless.is_on do return {}
+
+	workspace := objc_send(^NS.Object, _NS_Workspace, "sharedWorkspace")
+
+	return {
+		is_reducing_motion = bool(objc_send(NS.BOOL, workspace, "accessibilityDisplayShouldReduceMotion")),
+		is_increasing_contrast = bool(objc_send(NS.BOOL, workspace, "accessibilityDisplayShouldIncreaseContrast")),
+		is_reducing_transparency = bool(objc_send(NS.BOOL, workspace, "accessibilityDisplayShouldReduceTransparency")),
+	}
+}
+
+// macOS posts these when the appearance, the accent or a display setting changes in System Settings.
 _watch_appearance :: proc() {
 	selector := intrinsics.objc_find_selector("appearanceChanged:")
 	shared := objc_send(^NS.Object, _NS_Distributed_Center, "defaultCenter")
 	objc_send(nil, shared, "addObserver:selector:name:object:", _state.target, selector, NS.AT("AppleInterfaceThemeChangedNotification"), rawptr(nil))
 	local := objc_send(^NS.Object, NS.NotificationCenter, "defaultCenter")
 	objc_send(nil, local, "addObserver:selector:name:object:", _state.target, selector, NS.AT("NSSystemColorsDidChangeNotification"), rawptr(nil))
+	workspace := objc_send(^NS.Object, objc_send(^NS.Object, _NS_Workspace, "sharedWorkspace"), "notificationCenter")
+	objc_send(nil, workspace, "addObserver:selector:name:object:", _state.target, selector, NS.AT("NSWorkspaceAccessibilityDisplayOptionsDidChangeNotification"), rawptr(nil))
 }

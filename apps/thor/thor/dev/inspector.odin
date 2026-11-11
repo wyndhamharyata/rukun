@@ -95,7 +95,7 @@ build_inspector :: proc() {
 			gap          = 8,
 			background   = kit.colors.base_200,
 			border_width = 1,
-			border_color = kit.to_faded(kit.colors.base_content, kit.LINE_OPACITY),
+			border_color = kit.colors.line,
 			flags        = {.Clickable},
 		}
 		if ui.col("panel", panel) {

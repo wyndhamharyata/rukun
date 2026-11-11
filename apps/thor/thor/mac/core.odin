@@ -84,6 +84,7 @@ foreign core_foundation {
 @(default_calling_convention = "c")
 foreign core_graphics {
 	kCGColorSpaceSRGB: String_Ref
+	kCGColorSpaceDisplayP3: String_Ref
 
 	CGColorSpaceCreateWithName :: proc(name: String_Ref) -> Color_Space_Ref ---
 	CGColorSpaceCreateDeviceGray :: proc() -> Color_Space_Ref ---

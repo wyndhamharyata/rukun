@@ -15,7 +15,48 @@ struct Instance {
     float2 gradient;
     float rotation;
     uint gradient_kind;
+    float4 under_color;
 };
+
+// What the target stores: linear light or gamma, and sRGB or Display P3.
+constant uint color_linear = 1;
+constant uint color_p3 = 2;
+
+// The sRGB curve, kept odd so a P3 colour outside sRGB, which has a negative channel, survives.
+float3 to_linear(float3 c) {
+    float3 a = abs(c);
+    return sign(c) * select(pow((a + 0.055) / 1.055, 2.4), a / 12.92, a <= 0.04045);
+}
+
+float3 to_gamma(float3 c) {
+    float3 a = abs(c);
+    return sign(c) * select(1.055 * pow(a, 1.0 / 2.4) - 0.055, a * 12.92, a <= 0.0031308);
+}
+
+float to_linear(float c) { return to_linear(float3(c)).x; }
+float to_gamma(float c) { return to_gamma(float3(c)).x; }
+
+// Linear sRGB to linear Display P3, both D65. Display P3 has the sRGB curve.
+constant float3x3 srgb_to_p3 = float3x3(
+    float3(0.8224621, 0.0331941, 0.0170827),
+    float3(0.1775380, 0.9668058, 0.0723974),
+    float3(0.0, 0.0, 0.9105199)
+);
+
+float3 to_target(float3 srgb, uint flags) {
+    if (flags == 0) return srgb;
+    float3 c = to_linear(srgb);
+    if ((flags & color_p3) != 0) c = srgb_to_p3 * c;
+    return (flags & color_linear) != 0 ? c : to_gamma(c);
+}
+
+float4 to_target(float4 srgb, uint flags) {
+    return float4(to_target(srgb.rgb, flags), srgb.a);
+}
+
+float to_luminance(float3 linear) {
+    return dot(linear, float3(0.2126, 0.7152, 0.0722));
+}
 
 constant uint gradient_across = 1;
 constant uint gradient_linear = 2;
@@ -79,7 +120,8 @@ fragment float4 fragment_main(
     Fragment input [[stage_in]],
     const device Instance *instances [[buffer(0)]],
     texture2d<float> image [[texture(0)]],
-    sampler texture_sampler [[sampler(0)]]
+    sampler texture_sampler [[sampler(0)]],
+    constant uint &flags [[buffer(1)]]
 ) {
     Instance instance = instances[input.instance];
     float2 point = input.point;
@@ -89,7 +131,18 @@ fragment float4 fragment_main(
 
     if (instance.kind == kind_glyph) {
         float coverage = image.sample(texture_sampler, input.uv).r;
-        return float4(instance.color.rgb, 1.0) * instance.color.a * coverage;
+        float3 rgb = to_target(instance.color.rgb, flags);
+        // Ghostty's correction: blend the luminances as gamma would, then find the coverage that
+        // gives that luminance in linear light, so text keeps its weight.
+        if ((flags & color_linear) != 0 && instance.under_color.a > 0.0) {
+            float fg = to_luminance(rgb);
+            float bg = to_luminance(to_target(instance.under_color.rgb, flags));
+            if (abs(fg - bg) > 0.001) {
+                float blend = to_linear(to_gamma(fg) * coverage + to_gamma(bg) * (1.0 - coverage));
+                coverage = clamp((blend - bg) / (fg - bg), 0.0, 1.0);
+            }
+        }
+        return float4(rgb, 1.0) * instance.color.a * coverage;
     }
 
     float2 half_size = (instance.rect.zw - instance.rect.xy) * 0.5;
@@ -102,19 +155,20 @@ fragment float4 fragment_main(
 
     if (instance.kind == kind_image) {
         float4 pixel = image.sample(texture_sampler, input.uv);
+        if (pixel.a > 0.0) pixel.rgb = to_target(pixel.rgb / pixel.a, flags) * pixel.a;
         float fade = 1.0;
 
         if (has_gradient) {
             fade = 1.0 - to_gradient_step(instance, point);
         }
 
-        return pixel * float4(instance.color.rgb, 1.0) * instance.color.a * coverage * fade;
+        return pixel * float4(to_target(instance.color.rgb, flags), 1.0) * instance.color.a * coverage * fade;
     }
 
-    float4 color = instance.color;
+    float4 color = to_target(instance.color, flags);
 
     if (has_gradient) {
-        color = mix(color, instance.end_color, to_gradient_step(instance, point));
+        color = mix(color, to_target(instance.end_color, flags), to_gradient_step(instance, point));
     }
 
     // Premultiplied, and the border over the fill: a translucent border tints the fill beneath it,
@@ -123,7 +177,7 @@ fragment float4 fragment_main(
 
     if (instance.border_width > 0.0) {
         float border = smoothstep(-0.5, 0.5, distance + instance.border_width);
-        float4 edge = float4(instance.border_color.rgb, 1.0) * instance.border_color.a * border;
+        float4 edge = float4(to_target(instance.border_color.rgb, flags), 1.0) * instance.border_color.a * border;
         fill = edge + fill * (1.0 - edge.a);
     }
 

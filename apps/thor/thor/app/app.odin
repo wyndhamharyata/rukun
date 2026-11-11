@@ -379,6 +379,11 @@ begin_frame :: proc() -> (frame_seconds: f32) {
 	ui._begin_frame(native_window.size_points, native_window.pixels_per_point, zoom, frame_seconds, events)
 	shown.size_points = ui.window_size()
 	ui._default_text_color = kit.colors.base_content
+	ui._is_glass_shown = !platform.is_headless() && !ui.preferences().is_reducing_transparency
+	ui._glass_fallback = kit.colors.base_100
+	// A window with a screen is in Display P3. Snapshots stay in sRGB.
+	render.set_color_mode(kit.is_blending_linear, !platform.is_headless())
+	ui._min_contrast = max(kit.min_contrast, 4.5) if ui.preferences().is_increasing_contrast else kit.min_contrast
 	ui._focus_ring_color = kit.to_faded(kit.colors.primary, kit._FOCUS_BORDER_ALPHA)
 	kit._apply_text_events(events)
 	dev.apply_inspector_keys(events)
@@ -397,6 +402,8 @@ end_frame :: proc() -> bool {
 	dev.read_inspector_tree()
 	if shown._is_unseen do return true
 
+	if native_window.accessibility.is_wanted do _update_accessibility()
+	platform.set_glass(native_window, ui._state.glass_areas[:])
 	kit._finish_text_fields()
 	// AppKit puts the arrow back at the window's edges, so set the shape again each frame.
 	if ui.mouse_position().x >= 0 do platform.set_cursor(ui._cursor())

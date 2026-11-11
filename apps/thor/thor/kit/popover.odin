@@ -82,7 +82,7 @@ _begin_popover :: proc(id: string, is_open: ^bool, anchor: Anchor, width: f32) -
 			background    = colors.shadow,
 			softness      = 24,
 			position      = position + {0, 8},
-			flags         = {.Floating},
+			flags         = {.Floating, .Fade_In, .Fade_Out},
 		}
 		ui.box(fmt.tprintf("%s_shadow", id), shadow)
 	}
@@ -95,11 +95,11 @@ _begin_popover :: proc(id: string, is_open: ^bool, anchor: Anchor, width: f32) -
 		corner_radius = shape.radius_box,
 		background    = colors.popover,
 		border_width  = shape.border,
-		border_color  = to_faded(colors.base_content, LINE_OPACITY),
+		border_color  = colors.line,
 		position      = position,
 		// The panel stays hidden until kit measures it, so it never shows in the wrong place.
 		fade          = 0 if size.y > 0 else 1,
-		flags         = {.Floating, .Hoverable, .Arrow_Keys},
+		flags         = {.Floating, .Hoverable, .Arrow_Keys, .Fade_In, .Fade_Out},
 	}
 	box := ui.box(id, panel)
 	box.role, box.label = .Popover, id

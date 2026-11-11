@@ -1,6 +1,7 @@
 package ui
 
 import "../font"
+import "../platform"
 import "../render"
 import "core:math"
 
@@ -16,7 +17,72 @@ _mix :: proc(a, b: [4]f32, fraction: f32) -> [4]f32 {
 	return {mixed.r / mixed.a, mixed.g / mixed.a, mixed.b / mixed.a, mixed.a}
 }
 
-_draw :: proc(box: ^Box, clip: [4]f32, parent_opacity: f32) {
+_Ghost :: struct {
+	pushed:      [dynamic]render.Pushed,
+	opacity:     _Animated_Value,
+	drawn_frame: int,
+}
+
+// under is the colour under the box, which its text must read against.
+_draw :: proc(box: ^Box, clip: [4]f32, parent_opacity: f32, under: [4]f32) {
+	if .Fade_Out not_in box.style.flags || box._key == 0 {
+		_draw_box(box, clip, parent_opacity, under)
+		return
+	}
+
+	first := render.pushed_count()
+	_draw_box(box, clip, parent_opacity, under)
+	if box._key not_in _state.ghosts do _state.ghosts[box._key] = {}
+	ghost := &_state.ghosts[box._key]
+	clear(&ghost.pushed)
+	render.read_pushed(first, &ghost.pushed)
+	ghost.opacity = {value = 1}
+	ghost.drawn_frame = _state.frame_index
+}
+
+// shortcut: a copy can outlive an image texture that the image cache frees while it fades. Keep
+// the texture alive in the copy if that shows.
+_draw_ghosts :: proc() {
+	gone := make([dynamic]u64, context.temp_allocator)
+	for key, &ghost in _state.ghosts {
+		if ghost.drawn_frame == _state.frame_index do continue
+
+		ghost.opacity.value, ghost.opacity.velocity = _spring(ghost.opacity.value, ghost.opacity.velocity, 0, _FADE_MOTION)
+		if ghost.opacity.value <= 0 {
+			append(&gone, key)
+			continue
+		}
+		for pushed in ghost.pushed {
+			faded := pushed.instance
+			faded.color.a *= ghost.opacity.value
+			faded.border_color.a *= ghost.opacity.value
+			faded.end_color.a *= ghost.opacity.value
+			render.push(faded, pushed.texture)
+		}
+	}
+	for key in gone {
+		delete(_state.ghosts[key].pushed)
+		delete_key(&_state.ghosts, key)
+	}
+}
+
+// A glass box erases what is under it, so the window's glass shows, and its background tints the
+// glass. With no glass shown, it paints its tint, or the window's colour, opaque.
+_apply_glass :: proc(box: ^Box, background: [4]f32, rect, rect_pixels, clip_pixels: [4]f32) -> (paint, under: [4]f32) {
+	if !_is_glass_shown {
+		paint = background if background.a > 0 else _glass_fallback
+		paint.a = 1
+		return paint, paint
+	}
+
+	render.push_clear(rect_pixels, box.style.corner_radius * _state.pixels_per_point, clip_pixels)
+	area := platform.Glass_Area{_to_window_points(rect), box.style.corner_radius * _state.zoom, box.style.glass, background}
+	append(&_state.glass_areas, area)
+
+	return {}, _glass_fallback
+}
+
+_draw_box :: proc(box: ^Box, clip: [4]f32, parent_opacity: f32, under: [4]f32) {
 	style := box.style
 	opacity := parent_opacity * (1 - style.fade)
 
@@ -36,6 +102,14 @@ _draw :: proc(box: ^Box, clip: [4]f32, parent_opacity: f32) {
 		box._active_fraction,
 	)
 
+	inner_under: [4]f32
+	if style.glass != .None {
+		paint, glass_under := _apply_glass(box, background, rect, rect_pixels, clip_pixels)
+		background = paint
+		inner_under = _lay_over(glass_under, under)
+	} else {
+		inner_under = _lay_over(background, under) if background.a > 0 else under
+	}
 	has_gradient := style.gradient.y > style.gradient.x
 	has_fill := background.a > 0 || style.border_width > 0 || has_gradient
 
@@ -55,12 +129,32 @@ _draw :: proc(box: ^Box, clip: [4]f32, parent_opacity: f32) {
 		)
 	}
 
-	if box.shaped != nil do _draw_text(box, rect, clip_pixels, opacity)
+	if box.shaped != nil do _draw_text(box, rect, clip_pixels, opacity, inner_under)
+	_drawing_under = inner_under
 	if box.draw != nil do box.draw(box, rect_pixels, clip_pixels, opacity)
 
 	child_clip := _intersect(clip, rect) if .Clip in style.flags else clip
 
-	for child := box.first; child != nil; child = child.next do _draw(child, child_clip, opacity)
+	// A floating child with a background, such as a segmented control's pill, is the colour under
+	// the later children whose middle it covers.
+	covers: [8]struct {
+		rect:  [4]f32,
+		color: [4]f32,
+	}
+	cover_count := 0
+	for child := box.first; child != nil; child = child.next {
+		child_under := inner_under
+		middle := [2]f32{(child.rect.x + child.rect.z) / 2, (child.rect.y + child.rect.w) / 2}
+		for cover in covers[:cover_count] {
+			is_inside := middle.x >= cover.rect.x && middle.x < cover.rect.z && middle.y >= cover.rect.y && middle.y < cover.rect.w
+			if is_inside do child_under = cover.color
+		}
+		_draw(child, child_clip, opacity, child_under)
+		if .Floating in child.style.flags && child.style.background.a > 0 && cover_count < len(covers) {
+			covers[cover_count] = {child.rect, _lay_over(child.style.background, inner_under)}
+			cover_count += 1
+		}
+	}
 
 	// Forced focus reaches the boxes inside a component. Only the box that takes focus shows it.
 	is_forced_focus := box.forced == .Focus && .Clickable in style.flags
@@ -107,7 +201,7 @@ _to_faded_color :: proc(color: [4]f32, opacity: f32) -> [4]f32 {
 	return {color.r, color.g, color.b, color.a * opacity}
 }
 
-_draw_text :: proc(box: ^Box, rect: [4]f32, clip_pixels: [4]f32, opacity: f32) {
+_draw_text :: proc(box: ^Box, rect: [4]f32, clip_pixels: [4]f32, opacity: f32, under: [4]f32) {
 	style := box.style
 	pixels_per_point := _state.pixels_per_point
 	inner := [4]f32 {
@@ -135,10 +229,11 @@ _draw_text :: proc(box: ^Box, rect: [4]f32, clip_pixels: [4]f32, opacity: f32) {
 	font.draw(
 		box.shaped,
 		origin,
-		style.text_color if style.text_color.a > 0 else _default_text_color,
+		_to_readable(style.text_color if style.text_color.a > 0 else _default_text_color, under, _min_contrast),
 		_intersect(clip_pixels, inner * pixels_per_point),
 		box.color_of,
 		box.data,
 		opacity,
+		under,
 	)
 }

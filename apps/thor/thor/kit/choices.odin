@@ -7,8 +7,6 @@ import "core:math"
 
 _TOGGLE_SIZE_POINTS :: [2]f32{26, 15}
 _TOGGLE_KNOB_INSET_POINTS :: 1
-// The knob crosses in about a tenth of a second.
-_TOGGLE_SLIDE_RATE :: 30
 
 _CHECKBOX_POINTS :: 16
 _RADIO_POINTS :: 16
@@ -144,7 +142,7 @@ _style_toggle :: proc(box: ^ui.Box, is_on: bool, role: ui.Role, tone: Tone, stat
 		knob := colors.base_100 if is_on && tone == .Base else [4]f32{1, 1, 1, 1}
 		knob_size := size.y - 2 * _TOGGLE_KNOB_INSET_POINTS
 		travel := size.x - 2 * _TOGGLE_KNOB_INSET_POINTS - knob_size
-		fraction := ui.animate(fmt.tprintf("%x knob", box._key), 1 if is_on else 0, _TOGGLE_SLIDE_RATE)
+		fraction := ui.animate(fmt.tprintf("%x knob", box._key), 1 if is_on else 0, motion.fast)
 		position := [2]f32{_TOGGLE_KNOB_INSET_POINTS + fraction * travel, _TOGGLE_KNOB_INSET_POINTS}
 		if ui.scope(box) {
 			ui.box("", {width = ui.points(knob_size), height = ui.points(knob_size), corner_radius = knob_size / 2, background = {0, 0, 0, 0.3}, softness = 1.5, position = position + {0, 0.5}, flags = {.Floating}})
@@ -155,13 +153,20 @@ _style_toggle :: proc(box: ^ui.Box, is_on: bool, role: ui.Role, tone: Tone, stat
 
 // Sets selected^ to id on a click. selected^ keeps the id string, so the id must outlive the frame.
 // In a box with .Arrow_Keys, Tab enters at the selected radio, and the arrows move and select.
-radio :: proc(id: string, selected: ^string, tone := Tone.Primary, style: ui.Style = {}) -> ui.Signal {
-	box := ui.box(id, {flags = {.Clickable}})
-	box.role, box.label = .Radio, id
+radio :: proc(id: string, selected: ^string, label := "", tone := Tone.Primary, style: ui.Style = {}) -> ui.Signal {
+	look := ui.Style{flags = {.Clickable}}
+	if label != "" do look = {axis = .X, align = .Center, gap = 8, flags = {.Clickable}}
+	box := ui.box(id, look)
+	box.role, box.label = .Radio, label if label != "" else id
 	signal := _select_on_activation(ui.signal(box), selected, id)
 	box.is_on = selected^ == id
 	if box.is_on do _enter_group_at(box)
-	_style_radio(box, box.is_on, tone, signal, style)
+	if label == "" {
+		_style_radio(box, box.is_on, tone, signal, style)
+	} else if ui.scope(box) {
+		_style_radio(ui.box("dot", {}), box.is_on, tone, signal, style)
+		ui.box("", {text_color = colors.base_content, font_size = 13}, label)
+	}
 
 	return signal
 }
@@ -236,6 +241,24 @@ segmented :: proc(id: string, selected: ^string, options: []Option, tone := Tone
 	color, content := tone_colors(tone)
 
 	if ui.scope(track) {
+		// The selection is a pill that springs to the picked segment's place in the last frame.
+		// Before that place exists, the segment fills itself.
+		picked := ui._find_box_with_key(ui._to_key(selected^, track._seed))
+		has_pill := picked != nil && picked.rect.z > picked.rect.x
+		if has_pill {
+			pill := ui.Style {
+				width         = ui.points(picked.rect.z - picked.rect.x),
+				height        = ui.points(picked.rect.w - picked.rect.y),
+				position      = {picked.rect.x - track.rect.x, picked.rect.y - track.rect.y},
+				corner_radius = shape.radius_field - _SEGMENT_INSET_POINTS,
+				background    = colors.popover if tone == .Base else color,
+				border_width  = shape.border if tone == .Base else 0,
+				border_color  = colors.line,
+				motion        = motion.normal,
+				flags         = {.Floating},
+			}
+			ui.box("selection_pill", pill)
+		}
 		for option in options {
 			look := ui.Style {
 				width            = ui.fill() if width != {} else ui.fit_children(),
@@ -264,15 +287,14 @@ segmented :: proc(id: string, selected: ^string, options: []Option, tone := Tone
 			if option.is_disabled do text_color = to_faded(colors.base_content, 0.35)
 			if is_on {
 				_enter_group_at(segment)
-				// Base raises the selected segment as a card; a tone fills it.
-				if tone == .Base {
+				text_color = colors.base_content if tone == .Base else content
+				// Base raises the selected segment as a card, and a tone fills it.
+				if !has_pill && tone == .Base {
 					segment.style.background = colors.popover
 					segment.style.border_width = shape.border
-					segment.style.border_color = to_faded(colors.base_content, LINE_OPACITY)
-					text_color = colors.base_content
-				} else {
+					segment.style.border_color = colors.line
+				} else if !has_pill {
 					segment.style.background = color
-					text_color = content
 				}
 				segment.style.hover_background = segment.style.background
 				segment.style.press_background = segment.style.background

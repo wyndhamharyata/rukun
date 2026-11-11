@@ -57,7 +57,7 @@ resize_handle :: proc(id: string, size: ^f32, range: [2]f32, axis := ui.Axis.X, 
 	size^ = clamp(size^, range[0], range[1])
 
 	is_active := signal.is_held || signal.is_focused || grab._hot_fraction > 0.5
-	line.style.background = colors.primary if is_active else to_faded(colors.base_content, LINE_OPACITY)
+	line.style.background = colors.primary if is_active else colors.line
 	grab.role, grab.label, grab.value = .Splitter, id, fmt.tprintf("%.0f", size^)
 
 	return signal
@@ -242,7 +242,7 @@ _build_column_edge :: proc(column: ^Column, placed: _Placed_Column) {
 
 	is_active := signal.is_held || edge._hot_fraction > 0.5
 	if ui.scope(edge) {
-		line := colors.primary if is_active else to_faded(colors.base_content, LINE_OPACITY)
+		line := colors.primary if is_active else colors.line
 		ui.box("", {width = ui.points(1), height = ui.fill(), background = line})
 	}
 }

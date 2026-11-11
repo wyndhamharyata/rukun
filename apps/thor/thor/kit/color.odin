@@ -59,7 +59,7 @@ color_picker :: proc(id: string, color: ^[4]f32, width: f32 = 220) -> ui.Signal 
 				corner_radius = shape.radius_field,
 				background    = {color.r, color.g, color.b, 1},
 				border_width  = shape.border,
-				border_color  = to_faded(colors.base_content, LINE_OPACITY),
+				border_color  = colors.line,
 			}
 			ui.box("", swatch)
 			field := state.input

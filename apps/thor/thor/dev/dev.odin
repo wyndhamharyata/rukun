@@ -40,6 +40,8 @@ window_size_points: [2]f32
 forced_zoom: f32
 // THOR_APPEARANCE=light or dark overrides the app's own appearance.
 forced_appearance: platform.Appearance
+// Tests set it in place of the person's accessibility settings.
+forced_preferences: Maybe(platform.Preferences)
 test_typing: string
 started_at: time.Tick
 build_durations: [dynamic]time.Duration

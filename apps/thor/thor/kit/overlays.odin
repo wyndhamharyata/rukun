@@ -63,13 +63,13 @@ tooltip :: proc(anchor: Anchor, text: string) {
 		corner_radius = shape.radius_field - _FIELD_INSET_RADIUS,
 		background    = colors.popover,
 		border_width  = shape.border,
-		border_color  = to_faded(colors.base_content, LINE_OPACITY),
+		border_color  = colors.line,
 		text_color    = colors.base_content,
 		font_size     = 12,
 		position      = position,
 		// Kit hides it until the first layout, so it never shows in the wrong place.
 		fade          = 0 if size.y > 0 else 1,
-		flags         = {.Floating},
+		flags         = {.Floating, .Fade_In, .Fade_Out},
 	}
 	ui.push_parent(ui._state.overlay_root)
 	box := ui.box("tooltip", look, text)
@@ -111,7 +111,7 @@ _begin_dialog :: proc(id: string, is_open: ^bool, width, padding, gap, top: f32)
 		width      = ui.points(window.x),
 		height     = ui.points(window.y),
 		background = colors.shadow,
-		flags      = {.Floating, .Modal, .Hoverable},
+		flags      = {.Floating, .Modal, .Hoverable, .Fade_In, .Fade_Out},
 	}
 	ui.push_parent(ui._state.overlay_root)
 	backdrop := ui.box(id, backdrop_look)
@@ -144,7 +144,7 @@ _begin_dialog :: proc(id: string, is_open: ^bool, width, padding, gap, top: f32)
 		corner_radius = shape.radius_box,
 		background    = colors.popover,
 		border_width  = shape.border,
-		border_color  = to_faded(colors.base_content, LINE_OPACITY),
+		border_color  = colors.line,
 		position      = position,
 		// Kit hides it until the first layout, so it never shows in the wrong place.
 		fade          = 0 if size.y > 0 else 1,

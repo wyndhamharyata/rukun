@@ -48,6 +48,8 @@ Colors :: struct {
 	error, error_content:                       [4]f32,
 	// Menus, popovers, toasts and the shadow under them. daisyUI has no names for these.
 	popover, shadow:                            [4]f32,
+	// Borders, dividers and table lines: base_content at 12%.
+	line:                                       [4]f32,
 }
 
 // Which palette kit.colors takes. .System follows macOS, and changes with it.
@@ -76,6 +78,7 @@ dark_colors := Colors {
 	error_content     = to_color(0xffffffff),
 	popover           = to_color(0x2c2c31f5),
 	shadow            = {0, 0, 0, 0.45},
+	line              = {0xf2 / 255.0, 0xf2 / 255.0, 0xf4 / 255.0, 0.12},
 }
 
 light_colors := Colors {
@@ -100,6 +103,7 @@ light_colors := Colors {
 	error_content     = to_color(0xffffffff),
 	popover           = to_color(0xfbfbfcf5),
 	shadow            = {0, 0, 0, 0.16},
+	line              = {0x1d / 255.0, 0x1d / 255.0, 0x1f / 255.0, 0.12},
 }
 
 // Components read this copy of the palette in use, with its primary set.
@@ -116,7 +120,6 @@ DEFAULT_PRIMARY :: [4]f32{0x0a / 255.0, 0x84 / 255.0, 1, 1}
 // Opacities of base_content for grey surfaces and lines, as daisyUI's base-content/10.
 HOVER_OPACITY :: 0.07
 SELECTED_OPACITY :: 0.1
-LINE_OPACITY :: 0.12
 TRACK_OPACITY :: 0.18
 
 // Opacities of a tone behind a Soft control, at rest, hovered and pressed.
@@ -191,7 +194,6 @@ _tone_style :: proc(tone: Tone, variant: Variant) -> (style: ui.Style, hover_tex
 			text_color       = color,
 		}
 	}
-	text := _to_readable(color)
 
 	switch variant {
 	case .Auto, .Solid:
@@ -201,53 +203,57 @@ _tone_style :: proc(tone: Tone, variant: Variant) -> (style: ui.Style, hover_tex
 			background       = to_faded(color, SOFT_OPACITY),
 			hover_background = to_faded(color, _SOFT_HOVER_OPACITY),
 			press_background = to_faded(color, _SOFT_PRESS_OPACITY),
-			text_color       = text,
+			text_color       = color,
 		}
 	case .Outline:
 		style = solid
 		style.background = {}
 		style.border_width = shape.border
 		style.border_color = to_faded(color, _BASE_OUTLINE_OPACITY) if tone == .Base else color
-		style.text_color = text
+		style.text_color = color
 		return style, solid.text_color
 	case .Ghost:
 		style = {
 			hover_background = to_faded(colors.base_content, HOVER_OPACITY),
 			press_background = to_faded(colors.base_content, SELECTED_OPACITY),
-			text_color       = text,
+			text_color       = color,
 		}
 	}
 
 	return style, style.text_color
 }
 
-_READABLE_CONTRAST :: 3
-_READABLE_STEP :: 0.35
+// Blends in linear light, with Ghostty's correction so text keeps its weight. Off by default: kit's
+// tints came from daisyUI, which a browser blends in gamma, so they look fainter in Light and
+// stronger in Dark.
+is_blending_linear: bool
 
-// A tone too light to read on the window, as yellow on white, moves a step towards base_content.
-_to_readable :: proc(color: [4]f32) -> [4]f32 {
-	if _to_contrast(color, colors.base_100) >= _READABLE_CONTRAST do return color
-
-	readable := mix_color(color, colors.base_content, _READABLE_STEP)
-	readable.a = color.a
-
-	return readable
-}
-
-// WCAG's contrast ratio between two colours, from 1 to 21. It ignores alpha.
-_to_contrast :: proc(first, second: [4]f32) -> f32 {
-	luminance :: proc(color: [4]f32) -> f32 {
-		linear :: proc(channel: f32) -> f32 {
-			return channel / 12.92 if channel <= 0.04045 else math.pow((channel + 0.055) / 1.055, 2.4)
-		}
-
-		return 0.2126 * linear(color.r) + 0.7152 * linear(color.g) + 0.0722 * linear(color.b)
+// A colour from Display P3 values, such as a designer picks on a Mac. On a P3 screen it can be more
+// vivid than any sRGB colour, so its channels can be below 0 or above 1.
+to_color_from_p3 :: proc(red, green, blue: f32, alpha: f32 = 1) -> [4]f32 {
+	linear :: proc(c: f32) -> f32 {
+		a := abs(c)
+		v := a / 12.92 if a <= 0.04045 else math.pow((a + 0.055) / 1.055, 2.4)
+		return v if c >= 0 else -v
 	}
-
-	a, b := luminance(first), luminance(second)
-
-	return (max(a, b) + 0.05) / (min(a, b) + 0.05)
+	gamma :: proc(c: f32) -> f32 {
+		a := abs(c)
+		v := a * 12.92 if a <= 0.0031308 else 1.055 * math.pow(a, 1 / 2.4) - 0.055
+		return v if c >= 0 else -v
+	}
+	r, g, b := linear(red), linear(green), linear(blue)
+	// Linear Display P3 to linear sRGB, both D65.
+	return {
+		gamma(1.2249401 * r - 0.2249404 * g),
+		gamma(-0.0420569 * r + 1.0420571 * g),
+		gamma(-0.0196376 * r - 0.0786361 * g + 1.0982735 * b),
+		alpha,
+	}
 }
+
+// The least WCAG contrast that ui gives text and icons against the colour under them. 3 is AA for
+// large text. Increase contrast raises it to at least 4.5, AA for body text.
+min_contrast: f32 = 3
 
 // Corners and borders, with daisyUI's names. One shape serves both appearances.
 Shape :: struct {
@@ -261,6 +267,17 @@ Shape :: struct {
 }
 
 _FIELD_INSET_RADIUS :: 2
+
+// fast for a hover or a knob, normal for a move, slow for a large panel.
+Motions :: struct {
+	fast, normal, slow: ui.Motion,
+}
+
+motion := Motions {
+	fast = {duration = 0.15},
+	normal = {duration = 0.25},
+	slow = {duration = 0.4, bounce = 0.15},
+}
 
 shape := Shape {
 	radius_selector = 4,

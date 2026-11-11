@@ -67,6 +67,10 @@ Flag :: enum {
 	Keeps_Tab,
 	// On an overlay: boxes under it take no pointer input. Focus stays in it and later overlays.
 	Modal,
+	// Fades in, in _FADE_MOTION, on the first frame the box exists.
+	Fade_In,
+	// When the app stops building the box, its last frame stays and fades out in _FADE_MOTION.
+	Fade_Out,
 }
 
 Flags :: bit_set[Flag]
@@ -98,6 +102,10 @@ Style :: struct {
 	line_height:      f32,
 	fade:             f32,
 	position:         [2]f32,
+	// A non-zero motion springs the box from its old place in its parent, and its size in points.
+	motion:           Motion,
+	// The system's glass behind the box, tinted with its background.
+	glass:            Glass,
 	// 0 means no limit.
 	min_size:         [2]f32,
 	max_size:         [2]f32,
@@ -141,34 +149,17 @@ Box :: struct {
 	role:             Role,
 	// A button's label, a field's placeholder, an icon button's id.
 	label:            string,
+	// x and y of its place in its parent, then width and height, while style.motion springs them.
+	_motion:          [4]_Animated_Value,
+	_appear:          _Animated_Value,
+	_was_built_last_frame: bool,
 	// A field's text, a slider's percent.
 	value:            string,
 	// Checked, on, selected or current.
 	is_on:            bool,
 }
 
-// For the headless tree and, later, VoiceOver. A box with text and no role counts as Text.
-Role :: enum {
-	None,
-	Button,
-	Checkbox,
-	Toggle,
-	Text_Field,
-	Menu_Item,
-	Row,
-	Text,
-	Image,
-	Popover,
-	Toast,
-	Slider,
-	Radio,
-	Tab,
-	Pop_Up,
-	Progress,
-	Tooltip,
-	Dialog,
-	Splitter,
-}
+Role :: platform.Role
 
 // An id names what an element is for. Labels such as "Save" change with the language.
 // Capitals alone do not count, because data ids such as "i.Kv8JsA" or a UUID have them too.
@@ -184,8 +175,23 @@ _is_text_like_id :: proc(id: string) -> bool {
 
 _Animated_Value :: struct {
 	value:             f32,
+	velocity:          f32,
 	_last_built_frame: int,
 }
+
+// A spring that settles on its target in about duration seconds. The zero Motion arrives at once,
+// as every Motion does when the person reduces motion.
+Motion :: struct {
+	duration: f32,
+	// 0 settles with no overshoot. 0.3 overshoots a little.
+	bounce:   f32,
+}
+
+// Not style.motion: an overlay that fades must still follow its anchor at once.
+_FADE_MOTION :: Motion{duration = 0.15}
+
+// A stiff spring stays stable at 240 steps a second, even when a frame takes 1/30 s.
+_SPRING_STEP_SECONDS :: 1.0 / 240
 
 HOT_RATE_PER_SECOND :: 20
 
@@ -215,6 +221,10 @@ forced_state: Forced_State
 Context :: struct {
 	boxes:                  map[u64]^Box,
 	values:                 map[u64]_Animated_Value,
+	// The last frame of each box with .Fade_Out, by its key.
+	ghosts:                 map[u64]_Ghost,
+	// The boxes with glass in the frame drawn last, which app passes to platform.
+	glass_areas:            [dynamic]platform.Glass_Area,
 	root:                   ^Box,
 	overlay_root:           ^Box,
 	parents:                [dynamic]^Box,
@@ -269,6 +279,9 @@ _use_context :: proc(ui_context: ^Context) {
 }
 
 _destroy_context :: proc(ui_context: ^Context) {
+	delete(ui_context.glass_areas)
+	for _, ghost in ui_context.ghosts do delete(ghost.pushed)
+	delete(ui_context.ghosts)
 	for _, box in ui_context.boxes do free(box)
 	delete(ui_context.boxes)
 	delete(ui_context.values)
@@ -368,6 +381,19 @@ _cursor :: proc() -> platform.Cursor {
 	return _state.cursor
 }
 
+Preferences :: platform.Preferences
+
+Glass :: platform.Glass
+Glass_Area :: platform.Glass_Area
+
+// app sets it at launch and when System Settings changes. It is the same for every window.
+_preferences: Preferences
+
+// The person's display settings for accessibility, which motion, contrast and glass follow.
+preferences :: proc() -> Preferences {
+	return _preferences
+}
+
 // In points at the current zoom, so zooming in makes it smaller. Lay out by it, never by the zoom.
 window_size :: proc() -> [2]f32 {
 	return _state.window_size
@@ -408,7 +434,8 @@ box :: proc(id: string, style: Style, text: string = "") -> ^Box {
 	parent := current_parent()
 	key := _to_key(id, parent._seed) if id != "" else 0
 
-	if cached, ok := _state.boxes[key]; ok && key != 0 && cached._last_built_frame == _state.frame_index {
+	cached, is_cached := _state.boxes[key]
+	if is_cached && key != 0 && cached._last_built_frame == _state.frame_index {
 		_warn(
 			parent,
 			"two children have the id \"%s\". The second one keeps no state, so it gets no clicks, scroll or animation. Give each child its own id.",
@@ -419,7 +446,16 @@ box :: proc(id: string, style: Style, text: string = "") -> ^Box {
 	if id != "" && _is_text_like_id(id) {
 		_warn(parent, "the id \"%s\" looks like a label. Use snake_case, such as sort_menu.", id)
 	}
+	was_built_last_frame := key != 0 && is_cached && cached._last_built_frame == _state.frame_index - 1
 	box := _make_box(key, style)
+	box._was_built_last_frame = was_built_last_frame
+	if key != 0 && style.motion != {} do _spring_size(box)
+	if key != 0 && .Fade_In in style.flags {
+		appear := &box._appear
+		if !was_built_last_frame do appear^ = {}
+		appear.value, appear.velocity = _spring(appear.value, appear.velocity, 1, _FADE_MOTION)
+		box.style.fade = 1 - (1 - box.style.fade) * appear.value
+	}
 	box.id = id
 	box._id_hash = hash.fnv64a(transmute([]u8)id) if id != "" else 0
 
@@ -530,20 +566,97 @@ set_scroll :: proc(box: ^Box, scroll: f32) {
 	box._scroll_target = scroll
 }
 
-animate :: proc(id: string, target: f32, rate: f32 = HOT_RATE_PER_SECOND) -> f32 {
+animate :: proc(id: string, target: f32, motion: Motion) -> f32 {
 	key := _to_key(id, 0)
 	value, ok := _state.values[key]
 
 	if !ok do value.value = target
 
-	value.value = _approach(value.value, target, rate)
+	value.value, value.velocity = _spring(value.value, value.velocity, target, motion)
 	value._last_built_frame = _state.frame_index
 	_state.values[key] = value
 
 	return value.value
 }
 
+// ω is 2π / duration and the damping ratio is 1 − bounce.
+_spring :: proc(value, velocity, target: f32, motion: Motion) -> (f32, f32) {
+	if motion.duration <= 0 || _preferences.is_reducing_motion do return target, 0
+
+	omega := 2 * math.PI / motion.duration
+	damping := 1 - motion.bounce
+	x, v := value, velocity
+	for left := _state.frame_seconds; left > 0; left -= _SPRING_STEP_SECONDS {
+		step := min(left, _SPRING_STEP_SECONDS)
+		v += (-omega * omega * (x - target) - 2 * damping * omega * v) * step
+		x += v * step
+	}
+
+	scale := max(1, abs(target))
+	if abs(target - x) < _SETTLED_FRACTION * scale && abs(v) < _SETTLED_FRACTION * scale * omega do return target, 0
+
+	_state.is_animating = true
+
+	return x, v
+}
+
+// shortcut: only a size in points springs, as a fill or fit size is known only after layout. Spring
+// the resolved size in layout if an app needs it.
+_spring_size :: proc(box: ^Box) {
+	for axis in 0 ..< 2 {
+		size := &box.style.width if axis == 0 else &box.style.height
+		if size.kind != .Points do continue
+
+		spring := &box._motion[2 + axis]
+		if !box._was_built_last_frame do spring^ = {value = size.value}
+		spring.value, spring.velocity = _spring(spring.value, spring.velocity, size.value, box.style.motion)
+		size.value = spring.value
+	}
+}
+
+// Springs each box with a motion from its old place to its new one, and moves its children with it.
+_spring_places :: proc(box: ^Box) {
+	if box._key != 0 && box.style.motion != {} {
+		target := _to_place_in_parent(box)
+		x, y := &box._motion[0], &box._motion[1]
+		if !box._was_built_last_frame {
+			x^ = {value = target.x}
+			y^ = {value = target.y}
+		}
+		x.value, x.velocity = _spring(x.value, x.velocity, target.x, box.style.motion)
+		y.value, y.velocity = _spring(y.value, y.velocity, target.y, box.style.motion)
+		delta := [2]f32{x.value, y.value} - target
+		if delta != {} do _move_subtree(box, delta)
+	}
+
+	for child := box.first; child != nil; child = child.next do _spring_places(child)
+}
+
+// Measured in the parent's content, so a scroll or a parent that moves springs nothing.
+_to_place_in_parent :: proc(box: ^Box) -> [2]f32 {
+	place := [2]f32{box.rect.x, box.rect.y}
+	parent := box.parent
+	if parent == nil do return place
+
+	place -= {parent.rect.x, parent.rect.y}
+	if .Scroll in parent.style.flags do place[_axis_index(parent.style.axis)] += parent._placed_scroll
+
+	return place
+}
+
+// Moves the box and every box in it. The clips follow the boxes that clip, as _place sets them.
+_move_subtree :: proc(box: ^Box, delta: [2]f32) {
+	box.rect += {delta.x, delta.y, delta.x, delta.y}
+	child_clip := _intersect(box.clip, box.rect) if .Clip in box.style.flags else box.clip
+	for child := box.first; child != nil; child = child.next {
+		child.clip = child_clip
+		_move_subtree(child, delta)
+	}
+}
+
 _approach :: proc(value, target, rate: f32) -> f32 {
+	if _preferences.is_reducing_motion do return target
+
 	next := value + (target - value) * (1 - math.exp(-_state.frame_seconds * rate))
 
 	if abs(target - next) < _SETTLED_FRACTION * max(1, abs(target)) do return target
@@ -560,15 +673,20 @@ _end_frame :: proc() {
 		_measure(root)
 		_resolve(root)
 		_place(root, {0, 0}, window_clip)
+		_spring_places(root)
 	}
 	_finish_focus()
 	_apply_mouse_to_boxes()
-	_draw(_state.root, _NO_CLIP, 1)
-	_draw(_state.overlay_root, _NO_CLIP, 1)
+	clear(&_state.glass_areas)
+	_draw(_state.root, _NO_CLIP, 1, {})
+	_draw(_state.overlay_root, _NO_CLIP, 1, {})
+	_draw_ghosts()
 }
 
 // Headless runs call it to start from the state of a new window.
 _reset :: proc() {
+	for _, ghost in _state.ghosts do delete(ghost.pushed)
+	clear(&_state.ghosts)
 	for _, box in _state.boxes do free(box)
 	clear(&_state.boxes)
 	clear(&_state.values)

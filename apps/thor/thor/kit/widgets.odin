@@ -58,7 +58,7 @@ divider :: proc(style: ui.Style = {}) -> ui.Signal {
 	look := ui.Style {
 		width      = ui.fill(),
 		height     = ui.points(1),
-		background = to_faded(colors.base_content, LINE_OPACITY),
+		background = colors.line,
 	}
 
 	return ui.signal(ui.box("", ui.merge(look, style)))

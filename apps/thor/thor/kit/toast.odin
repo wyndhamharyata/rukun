@@ -61,7 +61,7 @@ build_toast :: proc(bottom_margin_points: f32 = 0) {
 	if icon != "" do width += _TOAST_ICON_POINTS + gap
 	top := window_size.y - bottom_margin_points - _TOAST_MARGIN_POINTS - _BUTTON_HEIGHT_POINTS
 	tone_color, _ := tone_colors(_window.toast.tone)
-	edge := tone_color if _window.toast.tone != .Base else to_faded(colors.base_content, LINE_OPACITY)
+	edge := tone_color if _window.toast.tone != .Base else colors.line
 
 	toast := ui.box(
 		"toast",
@@ -83,7 +83,7 @@ build_toast :: proc(bottom_margin_points: f32 = 0) {
 	)
 	toast.role, toast.label = .Toast, _window.toast.text
 	if ui.scope(toast) {
-		if icon != "" do icon_box(icon, _TOAST_ICON_POINTS, _to_readable(tone_color))
+		if icon != "" do icon_box(icon, _TOAST_ICON_POINTS, tone_color)
 		ui.box("", {text_color = colors.base_content, font_size = SMALL_TEXT_POINTS}, _window.toast.text)
 	}
 	// Request one frame when the fade starts, then every frame of the fade.

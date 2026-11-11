@@ -179,9 +179,10 @@ _make_metal_layer :: proc(device: ^MTL.Device) -> ^CA.MetalLayer {
 	layer->setOpaque(false)
 	layer->setFramebufferOnly(true)
 
-	srgb := mac.CGColorSpaceCreateWithName(mac.kCGColorSpaceSRGB)
-	defer mac.CGColorSpaceRelease(srgb)
-	objc_send(nil, layer, "setColorspace:", rawptr(srgb))
+	// render converts thor's sRGB colours to Display P3, so a P3 colour can show at full strength.
+	p3 := mac.CGColorSpaceCreateWithName(mac.kCGColorSpaceDisplayP3)
+	defer mac.CGColorSpaceRelease(p3)
+	objc_send(nil, layer, "setColorspace:", rawptr(p3))
 
 	return layer
 }
@@ -189,7 +190,7 @@ _make_metal_layer :: proc(device: ^MTL.Device) -> ^CA.MetalLayer {
 _make_metal_view :: proc(layer: ^CA.MetalLayer, content_rect: NS.Rect) -> ^NS.View {
 	view := objc_send(
 		^NS.View,
-		objc_send(^NS.View, NS.View, "alloc"),
+		objc_send(^NS.View, _Metal_View, "alloc"),
 		"initWithFrame:",
 		content_rect,
 	)

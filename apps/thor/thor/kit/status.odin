@@ -40,7 +40,7 @@ spinner :: proc(size_points: f32 = 16, tone := Tone.Base) -> ui.Signal {
 
 	color, _ := tone_colors(tone)
 	paint := new(_Spinner_Paint, context.temp_allocator)
-	paint^ = {int(steps) % _SPINNER_SPOKES, _to_readable(color)}
+	paint^ = {int(steps) % _SPINNER_SPOKES, color}
 	box.draw = _draw_spinner
 	box.data = paint
 	box.role, box.value = .Progress, "busy"
@@ -50,6 +50,7 @@ spinner :: proc(size_points: f32 = 16, tone := Tone.Base) -> ui.Signal {
 
 _draw_spinner :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 	paint := cast(^_Spinner_Paint)box.data
+	color := ui._to_readable(paint.color, ui._drawing_under, ui._min_contrast)
 	size := min(rect.z - rect.x, rect.w - rect.y)
 	center := [2]f32{(rect.x + rect.z) / 2, (rect.y + rect.w) / 2}
 	length := size * 0.28
@@ -63,7 +64,7 @@ _draw_spinner :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 		alpha := 1 - f32(age) * 0.75 / (_SPINNER_SPOKES - 1)
 		middle := center + [2]f32{math.cos(angle), math.sin(angle)} * reach
 		spoke_rect := [4]f32{middle.x - length / 2, middle.y - thickness / 2, middle.x + length / 2, middle.y + thickness / 2}
-		render.push({rect = spoke_rect, color = to_faded(paint.color, alpha * opacity), corner_radius = thickness / 2, rotation = angle, clip = clip})
+		render.push({rect = spoke_rect, color = to_faded(color, alpha * opacity), corner_radius = thickness / 2, rotation = angle, clip = clip})
 	}
 }
 

@@ -18,28 +18,15 @@ Blur_View :: struct {
 	using _: Visual_Effect_View,
 }
 
+// The colour behind what the current window draws. Glass hides it while the glass is open.
 set_background :: proc(color: [4]f32) {
 	if _headless.is_on do return
-
-	ns_color := objc_send(
-		^NS.Color,
-		NS.Color,
-		"colorWithSRGBRed:green:blue:alpha:",
-		NS.Float(color.r),
-		NS.Float(color.g),
-		NS.Float(color.b),
-		NS.Float(color.a),
-	)
 
 	window := current_window()
 	if window == nil do return
 
-	objc_send(
-		nil,
-		window.layer,
-		"setBackgroundColor:",
-		objc_send(rawptr, ns_color, "CGColor"),
-	)
+	window.glass.background = color
+	_show_background(window)
 }
 
 _Objc_Super :: struct {

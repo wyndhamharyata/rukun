@@ -40,7 +40,7 @@ menu_item :: proc(
 	if signal.is_activated do _close_popover()
 
 	color, _ := tone_colors(tone)
-	text_color := _to_readable(color)
+	text_color := color
 	if is_disabled do text_color = to_faded(colors.base_content, 0.35)
 	is_filled := !is_disabled && (is_selected || signal.is_focused || item._hot_fraction > 0.5)
 	if is_filled do text_color = colors.primary_content
@@ -76,5 +76,5 @@ menu_item :: proc(
 }
 
 menu_separator :: proc() {
-	ui.box("", {width = ui.fill(), height = ui.points(1), background = to_faded(colors.base_content, LINE_OPACITY)})
+	ui.box("", {width = ui.fill(), height = ui.points(1), background = colors.line})
 }

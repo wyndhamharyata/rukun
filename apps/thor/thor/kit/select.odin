@@ -32,7 +32,8 @@ select :: proc(
 	look.flags = {.Clickable}
 	box := ui.box(id, look)
 	shown := _to_option_label(options, selected^)
-	box.role, box.label, box.value = .Pop_Up, id, shown
+	// VoiceOver reads the placeholder, which names what the person picks.
+	box.role, box.label, box.value = .Pop_Up, placeholder if placeholder != "" else id, shown
 	trigger := ui.signal(box)
 
 	shown_color := look.text_color
@@ -94,6 +95,7 @@ _Slider_Paint :: struct {
 slider :: proc(
 	id: string,
 	value: ^f32,
+	label := "",
 	range := [2]f32{0, 1},
 	step: f32 = 0,
 	is_set_on_release := false,
@@ -107,8 +109,15 @@ slider :: proc(
 		corner_radius = _SLIDER_HEIGHT_POINTS / 2,
 		flags         = {.Clickable},
 	}
+	if label != "" {
+		row := ui.box("", {width = width, axis = .X, align = .Center, gap = 10})
+		ui.push_parent(row)
+		ui.box("", {text_color = colors.base_content, font_size = 13}, label)
+		look.width = ui.fill()
+	}
+	defer if label != "" do ui.pop_parent()
 	box := ui.box(id, look)
-	box.role, box.label = .Slider, id
+	box.role, box.label = .Slider, label if label != "" else id
 	signal := ui.signal(box)
 	span := range[1] - range[0]
 	travel := box.rect.z - box.rect.x - _SLIDER_KNOB_POINTS
