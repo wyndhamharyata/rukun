@@ -44,7 +44,7 @@ start_tasks_page :: proc() {
 }
 
 // Adds the New task field's task at the top of the list. The first #name that names a space puts
-// the task there, and every such #name leaves the title. Returns false when no title is left.
+// the task in that space. The title drops every such #name. Returns false when the title has nothing left.
 add_task :: proc() -> bool {
 	space := find_space("keluarga")
 	is_picked := false
@@ -95,7 +95,6 @@ filter_tasks :: proc(query: string) {
 	}
 }
 
-// The checkbox's column has no title.
 TASK_COLUMNS := [?]kit.Column {
 	{id = "done", title = "", width = 40, min_width = 40},
 	{id = "title", title = "Title"},

@@ -7,7 +7,7 @@ import "thor/dev"
 import "thor/kit"
 import "thor/ui"
 
-// A guess at an item's height before it is measured: a name line and two lines of text.
+// A guess at an item's height before the list measures it: a name line and two lines of text.
 ITEM_ESTIMATE :: 60
 
 COMPOSER_STYLE :: ui.Style {
@@ -54,7 +54,7 @@ build_space_page :: proc(space: ^Space) {
 	}
 }
 
-// Adds the composer's text at the end of the space. Returns false when it holds only spaces.
+// Adds the composer's text at the end of the space. Returns false when the text is only whitespace.
 send_message :: proc(space: ^Space) -> bool {
 	text := strings.trim_space(kit.to_input_text(&composer))
 	if text == "" do return false

@@ -67,13 +67,13 @@ state: struct {
 
 main :: proc() {
 	load_rukun()
-	// Dark with a set accent, so every run shows and measures the same app.
+	// Dark with a fixed accent, so every run shows and measures the same app.
 	kit.appearance = .Dark
 	kit.dark_colors.base_100 = kit.to_color(0x121214ff)
 	kit.dark_colors.primary = kit.DEFAULT_PRIMARY
 	state.section = os.get_env("TESTAPP_PAGE", context.allocator)
 	if state.section == "" do state.section = "tasks"
-	// The harness speaks the spec's names; thor's dev package reads its own.
+	// The harness uses the spec's env names. thor's dev package reads its own names.
 	if os.get_env("TESTAPP_MARK", context.temp_allocator) == "1" do os.set_env("THOR_STARTUP_MARK", "1")
 	if os.get_env("TESTAPP_SCROLL", context.temp_allocator) == "1" do os.set_env("THOR_BENCH", "1")
 	if seconds := os.get_env("TESTAPP_SCROLL_SECONDS", context.temp_allocator); seconds != "" do os.set_env("THOR_BENCH_SECONDS", seconds)
@@ -162,7 +162,7 @@ make_id :: proc(prefix: string) -> string {
 	return fmt.aprintf("%s+%d", prefix, state.added)
 }
 
-// The Mac's local time now, as the data writes times: 2026-11-09T14:05.
+// The Mac's local time now, in the data's time format: 2026-11-09T14:05.
 now_text :: proc() -> string {
 	local := time.time_add(
 		time.now(),
@@ -193,7 +193,7 @@ MONTHS := [12]string {
 	"Dec",
 }
 
-// 2027-01-30 reads 30 Jan 2027.
+// Turns 2027-01-30 into 30 Jan 2027.
 to_date_text :: proc(date: string) -> string {
 	month := strconv.parse_int(date[5:7]) or_else 1
 	day := strconv.parse_int(date[8:10]) or_else 1
@@ -201,7 +201,7 @@ to_date_text :: proc(date: string) -> string {
 	return fmt.tprintf("%d %s %s", day, MONTHS[month - 1], date[:4])
 }
 
-// 2026-11-08T21:26 reads 8 Nov 2026, 21.26.
+// Turns 2026-11-08T21:26 into 8 Nov 2026, 21.26.
 to_time_text :: proc(time: string) -> string {
 	return fmt.tprintf("%s, %s.%s", to_date_text(time[:10]), time[11:13], time[14:16])
 }
