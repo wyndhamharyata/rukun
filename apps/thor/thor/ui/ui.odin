@@ -34,12 +34,16 @@ Size :: struct {
 	value: f32,
 }
 
+// A fixed size in points.
 points :: proc "contextless" (value: f32) -> Size {return {.Points, value}}
 
+// Along the parent's axis, a share of the space left, by weight. Across it, all of the parent.
 fill :: proc "contextless" (weight: f32 = 1) -> Size {return {.Fill, weight}}
 
+// The children's size, with their gaps and the padding.
 fit_children :: proc "contextless" () -> Size {return {.Children, 0}}
 
+// The text's size, with the padding.
 fit_text :: proc "contextless" () -> Size {return {.Text, 0}}
 
 // Auto, the zero value, is the start.
@@ -399,6 +403,7 @@ window_size :: proc() -> [2]f32 {
 	return _state.window_size
 }
 
+// True while a spring, fade or scroll still moves.
 is_animating :: proc() -> bool {
 	return _state.is_animating
 }
@@ -426,10 +431,12 @@ _to_key :: proc(id: string, seed: u64) -> u64 {
 	return hash.fnv64a(transmute([]u8)id, seed * 0x100000001b3 + 0xcbf29ce484222325)
 }
 
+// The box that the boxes built now go into.
 current_parent :: proc() -> ^Box {
 	return _state.parents[len(_state.parents) - 1]
 }
 
+// Adds a box to the current parent. Its id keeps its state between frames, and "" keeps none.
 box :: proc(id: string, style: Style, text: string = "") -> ^Box {
 	parent := current_parent()
 	key := _to_key(id, parent._seed) if id != "" else 0
@@ -503,12 +510,14 @@ _make_box :: proc(key: u64, style: Style) -> ^Box {
 	return box
 }
 
+// Makes box the parent of the boxes built in the if block.
 @(deferred_none = pop_parent)
 scope :: proc(box: ^Box) -> bool {
 	push_parent(box)
 	return true
 }
 
+// A box that lays out the children built in the if block from left to right.
 @(deferred_none = pop_parent)
 row :: proc(id: string, style: Style = {}) -> bool {
 	style := style
@@ -517,6 +526,7 @@ row :: proc(id: string, style: Style = {}) -> bool {
 	return true
 }
 
+// A box that lays out the children built in the if block from top to bottom.
 @(deferred_none = pop_parent)
 col :: proc(id: string, style: Style = {}) -> bool {
 	style := style
@@ -542,14 +552,17 @@ merge :: proc(base, changes: Style) -> Style {
 	return merged
 }
 
+// Makes box the parent of the boxes built next, until pop_parent. scope does both.
 push_parent :: proc(box: ^Box) {
 	append(&_state.parents, box)
 }
 
+// Ends the last push_parent.
 pop_parent :: proc() {
 	pop(&_state.parents)
 }
 
+// The box with this id in parent, from this frame or the last, or nil.
 find_box :: proc(id: string, parent: ^Box) -> ^Box {
 	return _state.boxes[_to_key(id, parent._seed)] or_else nil
 }
@@ -566,6 +579,7 @@ set_scroll :: proc(box: ^Box, scroll: f32) {
 	box._scroll_target = scroll
 }
 
+// Springs a value toward target with motion. The id keeps the value between frames.
 animate :: proc(id: string, target: f32, motion: Motion) -> f32 {
 	key := _to_key(id, 0)
 	value, ok := _state.values[key]
@@ -722,6 +736,7 @@ _remove_unbuilt :: proc() {
 	}
 }
 
+// Points to pixels on the window's screen.
 to_pixels :: proc(points: f32) -> f32 {
 	return points * _state.pixels_per_point
 }

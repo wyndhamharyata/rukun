@@ -80,8 +80,8 @@ text_field :: proc(
 		gap              = 7,
 		padding          = {9, 0, 9, 0},
 		corner_radius    = shape.radius_field,
-		background       = to_faded(colors.base_content, HOVER_OPACITY),
-		hover_background = to_faded(colors.base_content, HOVER_OPACITY if is_focused else SELECTED_OPACITY),
+		background       = with_opacity(colors.base_content, HOVER_OPACITY),
+		hover_background = with_opacity(colors.base_content, HOVER_OPACITY if is_focused else SELECTED_OPACITY),
 		font_size        = _TEXT_FIELD_FONT_SIZE,
 		cursor           = .I_Beam,
 		flags            = {.Clickable, .No_Focus_Ring},
@@ -90,7 +90,7 @@ text_field :: proc(
 	// A tone, such as .Error for an invalid field, shows in the border, focused or not.
 	tone_color, _ := tone_colors(tone)
 	merged.border_width = shape.border if is_focused || tone != .Base else 0
-	merged.border_color = tone_color if tone != .Base else to_faded(colors.primary, _FOCUS_BORDER_ALPHA)
+	merged.border_color = tone_color if tone != .Base else with_opacity(colors.primary, _FOCUS_BORDER_ALPHA)
 	box := ui.box(id, merged)
 	box.role, box.label, box.value = .Text_Field, placeholder, to_input_text(input)
 
@@ -109,7 +109,7 @@ text_field :: proc(
 	pixels := ui.to_pixels(1)
 
 	if ui.scope(box) {
-		if icon != "" do icon_box(icon, merged.font_size, to_faded(colors.base_content, 0.5))
+		if icon != "" do icon_box(icon, merged.font_size, with_opacity(colors.base_content, 0.5))
 
 		line := ui.box("line", {width = ui.fill(), height = ui.fit_children(), axis = .Y, flags = {.Clip}})
 		ui.push_parent(line)
@@ -119,11 +119,11 @@ text_field :: proc(
 		if is_focused && selection[0] != selection[1] && len(shaped.lines) > 0 {
 			left := font.caret_x(shaped.lines[0], font.to_utf16_index(shown, selection[0])) / pixels
 			right := font.caret_x(shaped.lines[0], font.to_utf16_index(shown, selection[1])) / pixels
-			ui.box("", {width = ui.points(right - left), height = ui.fill(), background = to_faded(colors.primary, SOFT_OPACITY), position = {left, 0}, flags = {.Floating}})
+			ui.box("", {width = ui.points(right - left), height = ui.fill(), background = with_opacity(colors.primary, SOFT_OPACITY), position = {left, 0}, flags = {.Floating}})
 		}
 
 		text_look.text_color = colors.base_content
-		if shown == "" do text_look.text_color = to_faded(colors.base_content, 0.5)
+		if shown == "" do text_look.text_color = with_opacity(colors.base_content, 0.5)
 		text := ui.box("text", text_look, placeholder if shown == "" else shown)
 
 		if marked[0] >= 0 && len(shaped.lines) > 0 {

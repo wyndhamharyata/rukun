@@ -58,6 +58,7 @@ open :: proc(frame: proc(), options: Options = {}) {
 	app._settle_headless()
 }
 
+// Closes the windows that open opened, and restores kit.appearance.
 close :: proc() {
 	app._close_headless()
 	kit.appearance = _session.kept_appearance
@@ -73,10 +74,12 @@ wait :: proc(seconds: f32) {
 	for _ in 0 ..< int(seconds / platform.HEADLESS_FRAME_SECONDS + 0.5) do platform.step_headless(nil)
 }
 
+// Clicks the target count times, so 2 is a double click.
 click :: proc(target: Target, count := 1, loc := #caller_location) {
 	_press(target, .Left, count, loc)
 }
 
+// Right-clicks the target.
 right_click :: proc(target: Target, loc := #caller_location) {
 	_press(target, .Right, 1, loc)
 }
@@ -99,6 +102,7 @@ drag :: proc(target: Target, by: [2]f32, loc := #caller_location) {
 	settle()
 }
 
+// Moves the pointer over the target.
 hover :: proc(target: Target, loc := #caller_location) {
 	settle()
 	shown, position, ok := _to_input(target, loc)

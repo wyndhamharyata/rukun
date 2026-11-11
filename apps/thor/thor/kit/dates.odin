@@ -29,6 +29,7 @@ today :: proc() -> Date {
 	return {day[0], day[1], day[2]}
 }
 
+// The date days later, or earlier when days is negative.
 add_days :: proc(date: Date, days: int) -> Date {
 	moment, _ := time.components_to_time(date.year, date.month, date.day, 12, 0, 0)
 	year, month, day := time.date(time.time_add(moment, time.Duration(days) * 24 * time.Hour))
@@ -44,6 +45,7 @@ add_months :: proc(date: Date, months: int) -> Date {
 	return {year, month, min(date.day, days_in_month(year, month))}
 }
 
+// The number of days in the month, with leap years.
 days_in_month :: proc(year, month: int) -> int {
 	switch month {
 	case 2:
@@ -93,7 +95,7 @@ calendar :: proc(id: string, date: ^Date) -> ui.Signal {
 		if ui.row("weekdays", {gap = _CALENDAR_GAP_POINTS}) {
 			for column in 0 ..< 7 {
 				name := format_day(add_days(start, column), "EEEEEE")
-				text(name, to_faded(colors.base_content, 0.5), 11, .Semibold, ui.points(_CALENDAR_DAY_POINTS), .Center)
+				text(name, with_opacity(colors.base_content, 0.5), 11, .Semibold, ui.points(_CALENDAR_DAY_POINTS), .Center)
 			}
 		}
 
@@ -137,7 +139,7 @@ _build_day :: proc(calendar_box: ^ui.Box, day, picked, shown, today_date: Date) 
 	case day == today_date:
 		text_color = colors.primary
 	case !is_in_month:
-		text_color = to_faded(colors.base_content, 0.35)
+		text_color = with_opacity(colors.base_content, 0.35)
 	}
 	look := ui.Style {
 		width            = ui.points(_CALENDAR_DAY_POINTS),
@@ -145,8 +147,8 @@ _build_day :: proc(calendar_box: ^ui.Box, day, picked, shown, today_date: Date) 
 		text_align       = .Center,
 		corner_radius    = _CALENDAR_DAY_POINTS / 2,
 		background       = colors.primary if is_on else {},
-		hover_background = colors.primary if is_on else to_faded(colors.base_content, HOVER_OPACITY),
-		press_background = _to_darker(colors.primary, _FILL_HOVER_DARKEN) if is_on else to_faded(colors.base_content, SELECTED_OPACITY),
+		hover_background = colors.primary if is_on else with_opacity(colors.base_content, HOVER_OPACITY),
+		press_background = _to_darker(colors.primary, _FILL_HOVER_DARKEN) if is_on else with_opacity(colors.base_content, SELECTED_OPACITY),
 		text_color       = text_color,
 		font_size        = 13,
 		font_weight      = .Semibold if day == today_date else .Regular,
@@ -199,8 +201,8 @@ date_picker :: proc(id: string, date: ^Date, placeholder := "No date") -> ui.Sig
 	trigger := ui.signal(box)
 
 	if ui.scope(box) {
-		icon_box("calendar", 12, to_faded(look.text_color, 0.7))
-		color := look.text_color if date^ != {} else to_faded(look.text_color, 0.5)
+		icon_box("calendar", 12, with_opacity(look.text_color, 0.7))
+		color := look.text_color if date^ != {} else with_opacity(look.text_color, 0.5)
 		ui.box("", {text_color = color, font_size = 13, font_weight = .Medium}, shown)
 	}
 

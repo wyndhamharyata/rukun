@@ -11,7 +11,7 @@ _Icon_Paint :: struct {
 
 _draw_icon :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 	paint := cast(^_Icon_Paint)box.data
-	color := to_faded(ui._to_readable(paint.color, ui._drawing_under, ui._min_contrast), opacity)
+	color := with_opacity(ui._to_readable(paint.color, ui._drawing_under, ui._min_contrast), opacity)
 	icon.draw(paint.name, ui.to_pixels(paint.size_points), rect, clip, color, ui._drawing_under)
 }
 

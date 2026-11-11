@@ -29,6 +29,7 @@ text :: proc(
 	return ui.signal(ui.box("", style, value))
 }
 
+// A page title: 28 points, bold.
 heading :: proc(value: string) -> ui.Signal {
 	return text(value, font_size = 28, weight = .Bold)
 }

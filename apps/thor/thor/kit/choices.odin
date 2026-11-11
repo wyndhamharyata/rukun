@@ -39,7 +39,7 @@ toggle :: proc(id: string, is_on: ^bool, label := "", tone := Tone.Primary, styl
 // A pill with the label inside, in its tone's colour when on. It flips is_on^ as a checkbox does.
 toggle_chip :: proc(id: string, is_on: ^bool, label: string, tone := Tone.Primary) -> ui.Signal {
 	look, _ := _tone_style(tone if is_on^ else .Base, .Soft if is_on^ else .Solid)
-	if !is_on^ do look.text_color = to_faded(colors.base_content, 0.7)
+	if !is_on^ do look.text_color = with_opacity(colors.base_content, 0.7)
 	look.width = ui.fit_text()
 	look.height = ui.points(_CHIP_HEIGHT_POINTS)
 	look.padding = {10, 0, 10, 0}
@@ -101,11 +101,11 @@ _style_toggle :: proc(box: ^ui.Box, is_on: bool, role: ui.Role, tone: Tone, stat
 
 	#partial switch role {
 	case .Checkbox:
-		border := to_faded(colors.base_content, 0.5)
+		border := with_opacity(colors.base_content, 0.5)
 		if state.is_held {
 			border = colors.base_content
 		} else if state.is_hovered {
-			border = to_faded(colors.base_content, 0.7)
+			border = with_opacity(colors.base_content, 0.7)
 		}
 		look := ui.Style {
 			width         = ui.points(_CHECKBOX_POINTS),
@@ -124,11 +124,11 @@ _style_toggle :: proc(box: ^ui.Box, is_on: bool, role: ui.Role, tone: Tone, stat
 		if ui.scope(box) do icon_box("checkmark", check_size, content)
 	case .Toggle:
 		size := _TOGGLE_SIZE_POINTS
-		track := to_faded(colors.base_content, TRACK_OPACITY)
+		track := with_opacity(colors.base_content, TRACK_OPACITY)
 		if state.is_held {
-			track = to_faded(colors.base_content, TRACK_OPACITY + SELECTED_OPACITY)
+			track = with_opacity(colors.base_content, TRACK_OPACITY + SELECTED_OPACITY)
 		} else if state.is_hovered {
-			track = to_faded(colors.base_content, TRACK_OPACITY + HOVER_OPACITY)
+			track = with_opacity(colors.base_content, TRACK_OPACITY + HOVER_OPACITY)
 		}
 		look := ui.Style {
 			width         = ui.points(size.x),
@@ -186,13 +186,13 @@ _select_on_activation :: proc(signal: ui.Signal, selected: ^string, id: string) 
 _style_radio :: proc(box: ^ui.Box, is_on: bool, tone: Tone, state: ui.Signal, style: ui.Style) {
 	color, content := tone_colors(tone)
 	fill := color
-	border := to_faded(colors.base_content, 0.5)
+	border := with_opacity(colors.base_content, 0.5)
 	if state.is_held {
 		fill = _to_darker(color, _FILL_PRESS_DARKEN)
 		border = colors.base_content
 	} else if state.is_hovered {
 		fill = _to_darker(color, _FILL_HOVER_DARKEN)
-		border = to_faded(colors.base_content, 0.7)
+		border = with_opacity(colors.base_content, 0.7)
 	}
 	look := ui.Style {
 		width         = ui.points(_RADIO_POINTS),
@@ -233,7 +233,7 @@ segmented :: proc(id: string, selected: ^string, options: []Option, tone := Tone
 		axis          = .X,
 		padding       = _SEGMENT_INSET_POINTS,
 		corner_radius = shape.radius_field,
-		background    = to_faded(colors.base_content, HOVER_OPACITY),
+		background    = with_opacity(colors.base_content, HOVER_OPACITY),
 		flags         = {.Arrow_Keys},
 	}
 	track := ui.box(id, track_look)
@@ -269,8 +269,8 @@ segmented :: proc(id: string, selected: ^string, options: []Option, tone := Tone
 				gap              = 6,
 				padding          = {12, 0, 12, 0},
 				corner_radius    = shape.radius_field - _SEGMENT_INSET_POINTS,
-				hover_background = to_faded(colors.base_content, HOVER_OPACITY),
-				press_background = to_faded(colors.base_content, SELECTED_OPACITY),
+				hover_background = with_opacity(colors.base_content, HOVER_OPACITY),
+				press_background = with_opacity(colors.base_content, SELECTED_OPACITY),
 				flags            = {} if option.is_disabled else {.Clickable},
 			}
 			segment := ui.box(option.id, look)
@@ -282,9 +282,9 @@ segmented :: proc(id: string, selected: ^string, options: []Option, tone := Tone
 
 			is_on := selected^ == option.id
 			segment.role, segment.label, segment.is_on = .Tab, option.label, is_on
-			text_color := to_faded(colors.base_content, 0.7)
+			text_color := with_opacity(colors.base_content, 0.7)
 			if segment._hot_fraction > 0.5 do text_color = colors.base_content
-			if option.is_disabled do text_color = to_faded(colors.base_content, 0.35)
+			if option.is_disabled do text_color = with_opacity(colors.base_content, 0.35)
 			if is_on {
 				_enter_group_at(segment)
 				text_color = colors.base_content if tone == .Base else content

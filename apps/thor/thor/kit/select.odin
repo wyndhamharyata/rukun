@@ -37,7 +37,7 @@ select :: proc(
 	trigger := ui.signal(box)
 
 	shown_color := look.text_color
-	if shown == "" do shown, shown_color = placeholder, to_faded(look.text_color, 0.5)
+	if shown == "" do shown, shown_color = placeholder, with_opacity(look.text_color, 0.5)
 	if ui.scope(box) {
 		text_look := ui.Style {
 			width       = ui.fill() if width != {} else ui.fit_text(),
@@ -48,7 +48,7 @@ select :: proc(
 			flags       = {.Truncate_Text},
 		}
 		ui.box("", text_look, shown)
-		icon_box("chevron.up.chevron.down", 10, to_faded(look.text_color, 0.7))
+		icon_box("chevron.up.chevron.down", 10, with_opacity(look.text_color, 0.7))
 	}
 
 	is_open := _window.open_pop_up == box._key
@@ -173,8 +173,8 @@ _draw_slider :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 	filled.z = x
 	knob_rect := [4]f32{x - knob / 2, middle - knob / 2, x + knob / 2, middle + knob / 2}
 
-	render.push({rect = track, color = to_faded(colors.base_content, TRACK_OPACITY * opacity), corner_radius = track_height / 2, clip = clip})
-	render.push({rect = filled, color = to_faded(paint.color, opacity), corner_radius = track_height / 2, clip = clip})
+	render.push({rect = track, color = with_opacity(colors.base_content, TRACK_OPACITY * opacity), corner_radius = track_height / 2, clip = clip})
+	render.push({rect = filled, color = with_opacity(paint.color, opacity), corner_radius = track_height / 2, clip = clip})
 	shadow_offset := ui.to_pixels(0.5)
 	render.push({rect = knob_rect + {0, shadow_offset, 0, shadow_offset}, color = {0, 0, 0, 0.3 * opacity}, corner_radius = knob / 2, softness = ui.to_pixels(2), clip = clip})
 	render.push({rect = knob_rect, color = {1, 1, 1, opacity}, corner_radius = knob / 2, clip = clip})

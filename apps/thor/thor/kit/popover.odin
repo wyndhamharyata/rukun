@@ -30,6 +30,7 @@ popover :: proc(id: string, is_open: ^bool, anchor: Anchor, width: f32 = 0) -> b
 	return _begin_popover(id, is_open, anchor, width)
 }
 
+// A button that opens a menu. Build the menu items in the if block.
 @(deferred_out = _end_popover)
 menu_button :: proc(
 	id: string,

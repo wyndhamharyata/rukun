@@ -82,6 +82,7 @@ _Built_Line :: struct {
 	shown:   string,
 }
 
+// The text of the input. Typing changes it, so copy it to keep it.
 to_input_text :: proc(input: ^Text_Input) -> string {
 	return string(input.text[:])
 }
@@ -96,6 +97,7 @@ set_input_text :: proc(input: ^Text_Input, text: string) {
 	input._is_line_stale = true
 }
 
+// Frees the input's text and history.
 destroy_input :: proc(input: ^Text_Input) {
 	delete(input.text)
 	delete(input._line_starts)
@@ -123,8 +125,8 @@ text_editor :: proc(
 		axis             = .Y,
 		padding          = _EDITOR_PADDING_POINTS,
 		corner_radius    = shape.radius_field,
-		background       = to_faded(colors.base_content, HOVER_OPACITY),
-		hover_background = to_faded(colors.base_content, HOVER_OPACITY),
+		background       = with_opacity(colors.base_content, HOVER_OPACITY),
+		hover_background = with_opacity(colors.base_content, HOVER_OPACITY),
 		font_size        = _EDITOR_FONT_SIZE,
 		font_family      = .Mono if is_monospace else .System,
 		cursor           = .I_Beam,
@@ -132,7 +134,7 @@ text_editor :: proc(
 	}
 	look := ui.merge(base, style)
 	look.border_width = shape.border if is_focused else 0
-	look.border_color = to_faded(colors.primary, _FOCUS_BORDER_ALPHA)
+	look.border_color = with_opacity(colors.primary, _FOCUS_BORDER_ALPHA)
 	box := ui.box(id, look)
 	box.role, box.label = .Text_Field, id
 	box.value = to_input_text(input) if len(input.text) <= 200 else fmt.tprintf("%d bytes", len(input.text))
@@ -175,7 +177,7 @@ text_editor :: proc(
 					number_look.width = ui.points(gutter)
 					number_look.text_align = .End
 					number_look.padding = {0, 0, _EDITOR_GUTTER_GAP_POINTS, 0}
-					number_look.text_color = to_faded(colors.base_content, 0.35)
+					number_look.text_color = with_opacity(colors.base_content, 0.35)
 					number_look.flags = {}
 					ui.box("", number_look, fmt.tprint(index + 1))
 				}
@@ -252,7 +254,7 @@ _build_line :: proc(
 		from := font.to_utf16_index(shown, max(selection[0], start) - start)
 		to := font.to_utf16_index(shown, min(selection[1], end) - start)
 		runs_on := selection[1] > end
-		color := to_faded(colors.primary, SOFT_OPACITY if is_focused else HOVER_OPACITY)
+		color := with_opacity(colors.primary, SOFT_OPACITY if is_focused else HOVER_OPACITY)
 		if len(shaped.lines) == 0 && runs_on {
 			ui.box("", {width = ui.points(_EDITOR_EMPTY_SELECTION_POINTS), height = ui.points(shaper.line_height), background = color, flags = {.Floating}})
 		}

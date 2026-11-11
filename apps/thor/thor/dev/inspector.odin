@@ -81,10 +81,10 @@ build_inspector :: proc() {
 	}
 	if ui.overlay(_INSPECTOR_ID, layer) {
 		if is_outlining {
-			outline := kit.to_faded(kit.colors.primary, 0.35)
+			outline := kit.with_opacity(kit.colors.primary, 0.35)
 			for box in boxes do _mark(box, {}, outline)
 		}
-		if shown >= 0 do _mark(boxes[shown], kit.to_faded(kit.colors.primary, 0.18), kit.colors.primary)
+		if shown >= 0 do _mark(boxes[shown], kit.with_opacity(kit.colors.primary, 0.18), kit.colors.primary)
 
 		ui.box("", {width = ui.fill(), height = ui.fill()})
 		panel := ui.Style {
@@ -100,7 +100,7 @@ build_inspector :: proc() {
 		}
 		if ui.col("panel", panel) {
 			window := ui.window_size()
-			kit.text(fmt.tprintf("zoom %.0f%%  window %.0f × %.0f", ui._state.zoom * 100, window.x, window.y), kit.to_faded(kit.colors.base_content, 0.7), 12)
+			kit.text(fmt.tprintf("zoom %.0f%%  window %.0f × %.0f", ui._state.zoom * 100, window.x, window.y), kit.with_opacity(kit.colors.base_content, 0.7), 12)
 			if shown >= 0 do _build_details(boxes[shown])
 			kit.divider()
 			_build_tree(boxes)
@@ -171,7 +171,7 @@ _mark :: proc(box: _Inspected, background, border: [4]f32) {
 
 _build_details :: proc(box: _Inspected) {
 	kit.text(box.path, is_wrapped = true)
-	small :: proc(text: string) {kit.text(text, kit.to_faded(kit.colors.base_content, 0.7), 12)}
+	small :: proc(text: string) {kit.text(text, kit.with_opacity(kit.colors.base_content, 0.7), 12)}
 
 	rect := box.rect
 	small(fmt.tprintf("x %.0f  y %.0f  w %.0f  h %.0f", rect.x, rect.y, rect.z - rect.x, rect.w - rect.y))
@@ -226,8 +226,8 @@ _build_tree :: proc(boxes: []_Inspected) {
 				align            = .Center,
 				padding          = {4 + f32(box.depth) * 12, 0, 4, 0},
 				corner_radius    = 4,
-				background       = kit.to_faded(kit.colors.primary, kit.SOFT_OPACITY) if is_marked else {},
-				hover_background = kit.to_faded(kit.colors.base_content, kit.HOVER_OPACITY),
+				background       = kit.with_opacity(kit.colors.primary, kit.SOFT_OPACITY) if is_marked else {},
+				hover_background = kit.with_opacity(kit.colors.base_content, kit.HOVER_OPACITY),
 				flags            = {.Clickable},
 			}
 			box_row := ui.box(fmt.tprint(index), row)
@@ -235,7 +235,7 @@ _build_tree :: proc(boxes: []_Inspected) {
 				delete(_inspector.selected)
 				_inspector.selected = strings.clone(box.path)
 			}
-			if ui.scope(box_row) do kit.text(box.label, kit.colors.base_content if is_marked else kit.to_faded(kit.colors.base_content, 0.7), 12)
+			if ui.scope(box_row) do kit.text(box.label, kit.colors.base_content if is_marked else kit.with_opacity(kit.colors.base_content, 0.7), 12)
 		}
 	}
 }

@@ -43,15 +43,15 @@ _build_row :: proc(id: string, selected: ^string, label: string, kind: _Row_Kind
 		gap              = 12,
 		padding          = {12, 0, 12, 0},
 		corner_radius    = shape.radius_field - _FIELD_INSET_RADIUS,
-		hover_background = to_faded(colors.base_content, HOVER_OPACITY),
-		press_background = to_faded(colors.base_content, SELECTED_OPACITY),
+		hover_background = with_opacity(colors.base_content, HOVER_OPACITY),
+		press_background = with_opacity(colors.base_content, SELECTED_OPACITY),
 		flags            = {.Clickable},
 	}
 	switch kind {
 	case .List:
 	case .Nav:
 		base.height = ui.points(32)
-		base.press_background = to_faded(colors.base_content, SELECTED_OPACITY)
+		base.press_background = with_opacity(colors.base_content, SELECTED_OPACITY)
 	case .Tree:
 		base.height = ui.points(TREE_ROW_POINTS)
 		base.gap = 4
@@ -71,7 +71,7 @@ _build_row :: proc(id: string, selected: ^string, label: string, kind: _Row_Kind
 
 	row.is_on = is_on
 	if is_on {
-		row.style.background = to_faded(colors.base_content, SELECTED_OPACITY) if kind == .Nav else to_faded(colors.primary, SOFT_OPACITY)
+		row.style.background = with_opacity(colors.base_content, SELECTED_OPACITY) if kind == .Nav else with_opacity(colors.primary, SOFT_OPACITY)
 		row.style.hover_background = row.style.background
 		row.style.press_background = row.style.background
 	}
@@ -87,7 +87,7 @@ _build_row :: proc(id: string, selected: ^string, label: string, kind: _Row_Kind
 		}
 		if kind == .Nav {
 			label_look.font_weight = .Medium
-			if !is_on do label_look.text_color = to_faded(colors.base_content, 0.7)
+			if !is_on do label_look.text_color = with_opacity(colors.base_content, 0.7)
 		}
 		ui.box("", label_look, label)
 	}
@@ -117,7 +117,7 @@ _build_disclosure :: proc(row: ^ui.Box, signal: ui.Signal, is_open: ^bool) {
 		flags  = {.Clickable},
 	}
 	symbol := "chevron.down" if is_open^ else "chevron.right"
-	chevron := _icon_box("disclosure", symbol, 9, to_faded(colors.base_content, 0.7), look)
+	chevron := _icon_box("disclosure", symbol, 9, with_opacity(colors.base_content, 0.7), look)
 	if ui.signal(chevron).is_activated {
 		is_open^ = !is_open^
 		ui.request_frame()

@@ -62,8 +62,8 @@ build_note_task :: proc(task: ^Task) {
 
 	if ui.row(task.id, style) {
 		task_checkbox(task)
-		kit.text(task.title, kit.to_faded(kit.colors.base_content, 0.7) if task.done else {})
-		kit.text(to_date_text(task.due), kit.to_faded(kit.colors.base_content, 0.7), width = ui.points(88), align = .End)
+		kit.text(task.title, kit.with_opacity(kit.colors.base_content, 0.7) if task.done else {})
+		kit.text(to_date_text(task.due), kit.with_opacity(kit.colors.base_content, 0.7), width = ui.points(88), align = .End)
 	}
 }
 

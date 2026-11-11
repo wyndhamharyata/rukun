@@ -8,6 +8,7 @@ import "core:strconv"
 // {font size, line height} in points. Other font sizes keep the font's own line height.
 line_heights := [][2]f32{{12, 16}, {13, 18}, {15, 20}, {28, 36}}
 
+// The line height for a font size in line_heights, or 0 for the font's own.
 to_line_height :: proc(font_size: f32) -> f32 {
 	for pair in line_heights {
 		if pair[0] == font_size do return pair[1]
@@ -15,6 +16,7 @@ to_line_height :: proc(font_size: f32) -> f32 {
 	return 0
 }
 
+// A colour from 0xRRGGBBAA.
 to_color :: proc "contextless" (hex: u32) -> [4]f32 {
 	return {
 		f32((hex >> 24) & 0xff) / 255,
@@ -149,6 +151,7 @@ Variant :: enum {
 	Ghost,
 }
 
+// The tone's colour, and the colour of text and icons on it.
 tone_colors :: proc(tone: Tone) -> (color, content: [4]f32) {
 	switch tone {
 	case .Base:
@@ -188,9 +191,9 @@ _tone_style :: proc(tone: Tone, variant: Variant) -> (style: ui.Style, hover_tex
 	// A solid Base control is the plain grey one, not a fill of base_content.
 	if tone == .Base {
 		solid = {
-			background       = to_faded(color, HOVER_OPACITY),
-			hover_background = to_faded(color, _BUTTON_HOVER_ALPHA),
-			press_background = to_faded(color, _BUTTON_PRESS_ALPHA),
+			background       = with_opacity(color, HOVER_OPACITY),
+			hover_background = with_opacity(color, _BUTTON_HOVER_ALPHA),
+			press_background = with_opacity(color, _BUTTON_PRESS_ALPHA),
 			text_color       = color,
 		}
 	}
@@ -200,22 +203,22 @@ _tone_style :: proc(tone: Tone, variant: Variant) -> (style: ui.Style, hover_tex
 		style = solid
 	case .Soft:
 		style = {
-			background       = to_faded(color, SOFT_OPACITY),
-			hover_background = to_faded(color, _SOFT_HOVER_OPACITY),
-			press_background = to_faded(color, _SOFT_PRESS_OPACITY),
+			background       = with_opacity(color, SOFT_OPACITY),
+			hover_background = with_opacity(color, _SOFT_HOVER_OPACITY),
+			press_background = with_opacity(color, _SOFT_PRESS_OPACITY),
 			text_color       = color,
 		}
 	case .Outline:
 		style = solid
 		style.background = {}
 		style.border_width = shape.border
-		style.border_color = to_faded(color, _BASE_OUTLINE_OPACITY) if tone == .Base else color
+		style.border_color = with_opacity(color, _BASE_OUTLINE_OPACITY) if tone == .Base else color
 		style.text_color = color
 		return style, solid.text_color
 	case .Ghost:
 		style = {
-			hover_background = to_faded(colors.base_content, HOVER_OPACITY),
-			press_background = to_faded(colors.base_content, SELECTED_OPACITY),
+			hover_background = with_opacity(colors.base_content, HOVER_OPACITY),
+			press_background = with_opacity(colors.base_content, SELECTED_OPACITY),
 			text_color       = color,
 		}
 	}
@@ -286,7 +289,8 @@ shape := Shape {
 	border          = 1,
 }
 
-to_faded :: proc(color: [4]f32, opacity: f32) -> [4]f32 {
+// The colour with its alpha multiplied by opacity.
+with_opacity :: proc(color: [4]f32, opacity: f32) -> [4]f32 {
 	return {color.r, color.g, color.b, color.a * opacity}
 }
 
@@ -301,6 +305,7 @@ _to_darker :: proc(color: [4]f32, amount: f32) -> [4]f32 {
 	return {color.r * (1 - amount), color.g * (1 - amount), color.b * (1 - amount), color.a}
 }
 
+// Blends from and to: 0 gives from, and 1 gives to.
 mix_color :: proc(from, to: [4]f32, amount: f32) -> [4]f32 {
 	return from + (to - from) * amount
 }

@@ -9,8 +9,8 @@ _CARD_PRESS_LIGHTEN :: 0.1
 @(deferred_none = ui.pop_parent)
 clickable :: proc(id: string, style: ui.Style = {}) -> bool {
 	base := ui.Style {
-		hover_background = to_faded(colors.base_content, HOVER_OPACITY),
-		press_background = to_faded(colors.base_content, SELECTED_OPACITY),
+		hover_background = with_opacity(colors.base_content, HOVER_OPACITY),
+		press_background = with_opacity(colors.base_content, SELECTED_OPACITY),
 		flags            = {.Clickable},
 	}
 	merged := ui.merge(base, style)

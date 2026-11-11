@@ -175,6 +175,7 @@ _apply_scroll :: proc(event: platform.Scroll) {
 	}
 }
 
+// The box's input this frame: hover, press, activation, focus and drag.
 signal :: proc(box: ^Box) -> Signal {
 	if box.forced != .None {
 		return {
@@ -220,6 +221,7 @@ interaction :: proc() -> Interaction {
 	return _state.interaction
 }
 
+// The pointer in points from the window's top left, or {-1, -1} when it is outside.
 mouse_position :: proc() -> [2]f32 {
 	return _state.mouse
 }

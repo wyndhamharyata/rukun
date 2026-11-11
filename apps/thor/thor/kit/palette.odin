@@ -117,7 +117,7 @@ command_palette :: proc(
 	for option, index in shown do labels[index] = option.label
 	ranked := _rank(labels, to_input_text(field))
 	if len(ranked) == 0 {
-		ui.box("", {width = ui.fill(), padding = {12, 8, 12, 8}, text_color = to_faded(colors.base_content, 0.5)}, empty_text)
+		ui.box("", {width = ui.fill(), padding = {12, 8, 12, 8}, text_color = with_opacity(colors.base_content, 0.5)}, empty_text)
 		return ""
 	}
 	state.highlighted = clamp(state.highlighted + field.step, 0, len(ranked) - 1)
@@ -157,7 +157,7 @@ _build_command_row :: proc(command: Option, is_highlighted: bool) -> bool {
 		padding          = {10, 0, 10, 0},
 		corner_radius    = shape.radius_field - _FIELD_INSET_RADIUS,
 		background       = colors.primary if is_highlighted else {},
-		hover_background = colors.primary if is_highlighted else to_faded(colors.base_content, HOVER_OPACITY),
+		hover_background = colors.primary if is_highlighted else with_opacity(colors.base_content, HOVER_OPACITY),
 		press_background = _to_darker(colors.primary, _FILL_HOVER_DARKEN),
 		flags            = {.Clickable, .No_Focus_Ring},
 	}
@@ -165,10 +165,10 @@ _build_command_row :: proc(command: Option, is_highlighted: bool) -> bool {
 	row.role, row.label, row.is_on = .Menu_Item, command.label, is_highlighted
 	color := colors.primary_content if is_highlighted else colors.base_content
 	if ui.scope(row) {
-		if command.icon != "" do icon_box(command.icon, 14, color if is_highlighted else to_faded(colors.base_content, 0.7))
+		if command.icon != "" do icon_box(command.icon, 14, color if is_highlighted else with_opacity(colors.base_content, 0.7))
 		ui.box("", {width = ui.fill(), height = ui.fit_text(), text_color = color, font_size = 13, flags = {.Truncate_Text}}, command.label)
 		if command.hint != "" {
-			ui.box("", {width = ui.fit_text(), height = ui.fit_text(), text_color = to_faded(color, 0.6), font_size = 12}, command.hint)
+			ui.box("", {width = ui.fit_text(), height = ui.fit_text(), text_color = with_opacity(color, 0.6), font_size = 12}, command.hint)
 		}
 	}
 

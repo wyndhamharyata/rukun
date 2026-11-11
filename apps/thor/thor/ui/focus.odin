@@ -17,6 +17,7 @@ _Focus_Stop :: struct {
 	group: u64,
 }
 
+// Gives the box keyboard focus. nil takes focus away.
 focus :: proc(box: ^Box) {
 	_state.focused_key = box._key if box != nil else 0
 	_state.is_focus_moved = true

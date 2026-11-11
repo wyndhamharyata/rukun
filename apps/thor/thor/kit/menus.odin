@@ -41,7 +41,7 @@ menu_item :: proc(
 
 	color, _ := tone_colors(tone)
 	text_color := color
-	if is_disabled do text_color = to_faded(colors.base_content, 0.35)
+	if is_disabled do text_color = with_opacity(colors.base_content, 0.35)
 	is_filled := !is_disabled && (is_selected || signal.is_focused || item._hot_fraction > 0.5)
 	if is_filled do text_color = colors.primary_content
 
@@ -64,7 +64,7 @@ menu_item :: proc(
 				{
 					width = ui.fit_text(),
 					height = ui.fit_text(),
-					text_color = text_color if is_filled else to_faded(colors.base_content, 0.5),
+					text_color = text_color if is_filled else with_opacity(colors.base_content, 0.5),
 					font_size = 12,
 				},
 				hint,
@@ -75,6 +75,7 @@ menu_item :: proc(
 	return signal
 }
 
+// A line between menu items.
 menu_separator :: proc() {
 	ui.box("", {width = ui.fill(), height = ui.points(1), background = colors.line})
 }

@@ -130,7 +130,7 @@ build_tasks_page :: proc() {
 				align   = .Center,
 				justify = .Center,
 			}
-			if ui.col("empty", empty) do kit.text("No tasks match", kit.to_faded(kit.colors.base_content, 0.7), width = ui.fit_text())
+			if ui.col("empty", empty) do kit.text("No tasks match", kit.with_opacity(kit.colors.base_content, 0.7), width = ui.fit_text())
 			return
 		}
 
@@ -152,7 +152,7 @@ find_task_list :: proc(page: ^ui.Box) -> ^ui.Box {
 
 build_task_row :: proc(task: ^Task) {
 	if kit.list_row(task.id, &tasks_page.selected) {
-		dim := kit.to_faded(kit.colors.base_content, 0.7)
+		dim := kit.with_opacity(kit.colors.base_content, 0.7)
 		if kit.cell("done") do task_checkbox(task)
 		if kit.cell("title") do kit.text(task.title, dim if task.done else {})
 		if kit.cell("space") do kit.text(fmt.tprintf("#%s", task.space), dim)

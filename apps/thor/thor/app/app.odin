@@ -117,6 +117,7 @@ close_window :: proc(id: string) {
 	if shown := _find_window(id); shown != nil do platform.close_window(shown._platform)
 }
 
+// True while the window with this id is open.
 is_window_open :: proc(id: string) -> bool {
 	return _find_window(id) != nil
 }
@@ -355,6 +356,7 @@ _run_settled :: proc() -> bool {
 	return shown._on_frame()
 }
 
+// Starts a frame for an app with its own frame proc. Returns the seconds since the last frame.
 begin_frame :: proc() -> (frame_seconds: f32) {
 	shown := _current
 	free_all(context.temp_allocator)
@@ -384,7 +386,7 @@ begin_frame :: proc() -> (frame_seconds: f32) {
 	// A window with a screen is in Display P3. Snapshots stay in sRGB.
 	render.set_color_mode(kit.is_blending_linear, !platform.is_headless())
 	ui._min_contrast = max(kit.min_contrast, 4.5) if ui.preferences().is_increasing_contrast else kit.min_contrast
-	ui._focus_ring_color = kit.to_faded(kit.colors.primary, kit._FOCUS_BORDER_ALPHA)
+	ui._focus_ring_color = kit.with_opacity(kit.colors.primary, kit._FOCUS_BORDER_ALPHA)
 	kit._apply_text_events(events)
 	dev.apply_inspector_keys(events)
 

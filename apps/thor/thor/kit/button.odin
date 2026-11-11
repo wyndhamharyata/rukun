@@ -48,10 +48,10 @@ button :: proc(
 	if shown_variant == .Auto do shown_variant = .Ghost if is_icon_only else .Solid
 	look, hover_text := _tone_style(tone, shown_variant)
 	if is_disabled {
-		look.background = to_faded(look.background, _DISABLED_OPACITY)
-		look.border_color = to_faded(look.border_color, _DISABLED_OPACITY)
+		look.background = with_opacity(look.background, _DISABLED_OPACITY)
+		look.border_color = with_opacity(look.border_color, _DISABLED_OPACITY)
 		look.hover_background, look.press_background = look.background, look.background
-		look.text_color = to_faded(colors.base_content, 0.5)
+		look.text_color = with_opacity(colors.base_content, 0.5)
 	}
 
 	look.axis = .X

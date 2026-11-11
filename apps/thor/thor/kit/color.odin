@@ -96,9 +96,9 @@ color_well :: proc(id: string, color: ^[4]f32, width: f32 = 220) -> ui.Signal {
 		height           = ui.points(_BUTTON_HEIGHT_POINTS),
 		padding          = 4,
 		corner_radius    = shape.radius_field,
-		background       = to_faded(colors.base_content, HOVER_OPACITY),
-		hover_background = to_faded(colors.base_content, _BUTTON_HOVER_ALPHA),
-		press_background = to_faded(colors.base_content, _BUTTON_PRESS_ALPHA),
+		background       = with_opacity(colors.base_content, HOVER_OPACITY),
+		hover_background = with_opacity(colors.base_content, _BUTTON_HOVER_ALPHA),
+		press_background = with_opacity(colors.base_content, _BUTTON_PRESS_ALPHA),
 		flags            = {.Clickable},
 	}
 	box := ui.box(id, look)
@@ -153,6 +153,7 @@ to_hsv :: proc(rgb: [3]f32) -> [3]f32 {
 	return {hue, spread / high if high > 0 else 0, high}
 }
 
+// A colour from a hue in degrees, and a saturation and brightness from 0 to 1.
 to_color_from_hsv :: proc(hue, saturation, brightness: f32) -> [4]f32 {
 	chroma := brightness * saturation
 	sector := math.mod(hue, 360) / 60
@@ -223,7 +224,7 @@ _draw_color_square :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 	radius := box.style.corner_radius * ui.to_pixels(1)
 	hue := to_color_from_hsv(hsv[0], 1, 1)
 	across := render.Gradient_Kind{.Across, .Linear}
-	render.push({rect = rect, color = to_faded({1, 1, 1, 1}, opacity), end_color = to_faded(hue, opacity), gradient = {0, 1}, gradient_kind = across, corner_radius = radius, clip = clip})
+	render.push({rect = rect, color = with_opacity({1, 1, 1, 1}, opacity), end_color = with_opacity(hue, opacity), gradient = {0, 1}, gradient_kind = across, corner_radius = radius, clip = clip})
 	render.push({rect = rect, color = {}, end_color = {0, 0, 0, opacity}, gradient = {0, 1}, gradient_kind = {.Linear}, corner_radius = radius, clip = clip})
 
 	center := [2]f32{rect.x + (rect.z - rect.x) * hsv[1], rect.y + (rect.w - rect.y) * (1 - hsv[2])}
@@ -250,7 +251,7 @@ _draw_hue_strip :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 		start := to_color_from_hsv(f32(index) * 60, 1, 1)
 		end := to_color_from_hsv(f32(index + 1) * 60, 1, 1)
 		corner := radius if index == 0 || index == 5 else 0
-		render.push({rect = part, color = to_faded(start, opacity), end_color = to_faded(end, opacity), gradient = gradient, gradient_kind = across, corner_radius = corner, clip = clip})
+		render.push({rect = part, color = with_opacity(start, opacity), end_color = with_opacity(end, opacity), gradient = gradient, gradient_kind = across, corner_radius = corner, clip = clip})
 	}
 
 	center := [2]f32{rect.x + (rect.z - rect.x) * hsv[0] / 360, (rect.y + rect.w) / 2}
@@ -261,5 +262,5 @@ _draw_knob :: proc(center: [2]f32, fill: [4]f32, clip: [4]f32, opacity: f32) {
 	size := ui.to_pixels(_COLOR_KNOB_POINTS)
 	knob := [4]f32{center.x - size / 2, center.y - size / 2, center.x + size / 2, center.y + size / 2}
 	render.push({rect = knob + {0, 1, 0, 1}, color = {0, 0, 0, 0.3 * opacity}, corner_radius = size / 2, softness = ui.to_pixels(2), clip = clip})
-	render.push({rect = knob, color = to_faded(fill, opacity), border_color = {1, 1, 1, opacity}, border_width = ui.to_pixels(2), corner_radius = size / 2, clip = clip})
+	render.push({rect = knob, color = with_opacity(fill, opacity), border_color = {1, 1, 1, opacity}, border_width = ui.to_pixels(2), corner_radius = size / 2, clip = clip})
 }

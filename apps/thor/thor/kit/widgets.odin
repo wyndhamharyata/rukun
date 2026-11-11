@@ -30,7 +30,7 @@ _draw_bar :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 	render.push(
 		{
 			rect = track,
-			color = to_faded(colors.base_content, TRACK_OPACITY * opacity),
+			color = with_opacity(colors.base_content, TRACK_OPACITY * opacity),
 			corner_radius = radius,
 			clip = clip,
 		},
@@ -38,13 +38,14 @@ _draw_bar :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 	render.push(
 		{
 			rect = filled,
-			color = to_faded(paint.color if paint.color.a > 0 else colors.base_content, opacity),
+			color = with_opacity(paint.color if paint.color.a > 0 else colors.base_content, opacity),
 			corner_radius = radius,
 			clip = clip,
 		},
 	)
 }
 
+// The width in points of text on one line in the system font.
 measure_text :: proc(text: string, font_size: f32, weight := font.Weight.Regular) -> f32 {
 	if text == "" do return 0
 
@@ -54,6 +55,7 @@ measure_text :: proc(text: string, font_size: f32, weight := font.Weight.Regular
 	)
 }
 
+// A horizontal line, 1 point high, across the parent.
 divider :: proc(style: ui.Style = {}) -> ui.Signal {
 	look := ui.Style {
 		width      = ui.fill(),
@@ -70,6 +72,7 @@ _SLIDE_REST_SECONDS :: 0.3
 
 _slide_start_seconds: map[string]f64
 
+// One line of text. Under the pointer, it slides to show the part that does not fit.
 scrolling_text :: proc(
 	id, text: string,
 	color: [4]f32,
@@ -96,8 +99,7 @@ scrolling_text :: proc(
 		text,
 	)
 
-	key := fmt.aprint(id, text)
-	defer delete(key)
+	key := fmt.tprint(id, text)
 
 	is_under_pointer := is_hovered.? or_else ui.signal(box).is_hovered
 

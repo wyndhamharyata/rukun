@@ -64,7 +64,7 @@ _draw_spinner :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 		alpha := 1 - f32(age) * 0.75 / (_SPINNER_SPOKES - 1)
 		middle := center + [2]f32{math.cos(angle), math.sin(angle)} * reach
 		spoke_rect := [4]f32{middle.x - length / 2, middle.y - thickness / 2, middle.x + length / 2, middle.y + thickness / 2}
-		render.push({rect = spoke_rect, color = to_faded(color, alpha * opacity), corner_radius = thickness / 2, rotation = angle, clip = clip})
+		render.push({rect = spoke_rect, color = with_opacity(color, alpha * opacity), corner_radius = thickness / 2, rotation = angle, clip = clip})
 	}
 }
 

@@ -196,8 +196,8 @@ _build_column_title :: proc(column: _Placed_Column, sort: ^Sort) {
 		padding          = {_CELL_PADDING_POINTS, 0, _CELL_PADDING_POINTS, 0},
 		position         = {column.x, 0},
 		corner_radius    = shape.radius_field - _FIELD_INSET_RADIUS,
-		hover_background = to_faded(colors.base_content, HOVER_OPACITY) if sort != nil else {},
-		press_background = to_faded(colors.base_content, SELECTED_OPACITY) if sort != nil else {},
+		hover_background = with_opacity(colors.base_content, HOVER_OPACITY) if sort != nil else {},
+		press_background = with_opacity(colors.base_content, SELECTED_OPACITY) if sort != nil else {},
 		flags            = {.Floating, .Clickable} if sort != nil else {.Floating},
 	}
 	title := ui.box(column.id, look)
@@ -216,7 +216,7 @@ _build_column_title :: proc(column: _Placed_Column, sort: ^Sort) {
 		ui.request_frame()
 	}
 
-	color := colors.base_content if is_sorted else to_faded(colors.base_content, 0.7)
+	color := colors.base_content if is_sorted else with_opacity(colors.base_content, 0.7)
 	if ui.scope(title) {
 		ui.box("", {height = ui.fit_text(), text_color = color, font_size = 12, font_weight = .Semibold, flags = {.Truncate_Text}}, column.title)
 		if is_sorted do icon_box("chevron.down" if sort.is_descending else "chevron.up", 9, color)
