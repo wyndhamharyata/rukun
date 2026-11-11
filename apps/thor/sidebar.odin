@@ -15,7 +15,7 @@ build_sidebar :: proc() {
 	}
 
 	if ui.col("sidebar", style) {
-		if kit.list_row("tasks", &state.section, "Tasks", .Nav) {
+		if kit.nav_row("tasks", &state.section, "Tasks") {
 			if ui.here().is_activated do state.note = ""
 		}
 
@@ -25,7 +25,7 @@ build_sidebar :: proc() {
 
 		for space in rukun.spaces {
 			label := fmt.tprintf("#%s", space.name)
-			if kit.list_row(space.id, &state.section, label, .Nav) {
+			if kit.nav_row(space.id, &state.section, label) {
 				if ui.here().is_activated do state.note = ""
 			}
 		}
