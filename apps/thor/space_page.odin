@@ -17,7 +17,7 @@ COMPOSER_STYLE :: ui.Style {
 }
 
 // One draft serves every space.
-composer: kit.Text_Field
+composer: kit.Text_Input
 
 build_space_page :: proc(space: ^Space) {
 	if ui.col("space", {width = ui.fill(), height = ui.fill(), padding = {24, 40, 24, 24}}) {
@@ -50,13 +50,13 @@ build_space_page :: proc(space: ^Space) {
 
 		gap(12)
 		placeholder := fmt.tprintf("Message #%s", space.name)
-		kit.text_field(&composer, "composer", placeholder, style = COMPOSER_STYLE)
+		kit.text_field("composer", &composer, placeholder, style = COMPOSER_STYLE)
 	}
 }
 
 // Adds the composer's text at the end of the space. Returns false when it holds only spaces.
 send_message :: proc(space: ^Space) -> bool {
-	text := strings.trim_space(kit.to_field_text(&composer))
+	text := strings.trim_space(kit.to_input_text(&composer))
 	if text == "" do return false
 
 	message := Item {
@@ -67,7 +67,7 @@ send_message :: proc(space: ^Space) -> bool {
 		text   = strings.clone(text),
 	}
 	append(&space.items, message)
-	kit.set_field_text(&composer, "")
+	kit.set_input_text(&composer, "")
 
 	return true
 }
@@ -99,7 +99,7 @@ build_item :: proc(item: ^Item) {
 
 build_message :: proc(item: ^Item) {
 	if ui.col("message", {width = ui.fill(), gap = 8}) {
-		kit.paragraph(item.text)
+		kit.text(item.text, is_wrapped = true)
 
 		if item.photo != "" {
 			path := app.resource_path(fmt.tprintf("photos/%s", item.photo))
@@ -156,8 +156,8 @@ build_note_card :: proc(note: ^Note) {
 			padding = {12, 0, 12, 0},
 		},
 	)
-	if is_clicked, ok := kit.clickable("note", style); ok {
-		if is_clicked do open_note(note.id)
+	if kit.clickable("note", style) {
+		if ui.here().is_activated do open_note(note.id)
 		kit.text(note.title, weight = .Semibold)
 		if len(note.body) > 0 do kit.text(note.body[0], kit.to_faded(kit.colors.base_content, 0.7), 12)
 	}

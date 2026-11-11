@@ -8,12 +8,16 @@ build_sidebar :: proc() {
 	style := ui.Style {
 		width      = ui.points(220),
 		padding    = {12, 52, 12, 12},
+		height     = ui.fill(),
 		gap        = 2,
 		background = kit.to_color(SIDEBAR_COLOR),
+		flags      = {.Scroll, .Clip},
 	}
 
-	if ui.scroll("sidebar", style) {
-		if kit.nav_row("tasks", "Tasks", &state.section).is_clicked do state.note = ""
+	if ui.col("sidebar", style) {
+		if kit.list_row("tasks", &state.section, "Tasks", .Nav) {
+			if ui.here().is_activated do state.note = ""
+		}
 
 		gap(4)
 		kit.divider()
@@ -21,7 +25,9 @@ build_sidebar :: proc() {
 
 		for space in rukun.spaces {
 			label := fmt.tprintf("#%s", space.name)
-			if kit.nav_row(space.id, label, &state.section).is_clicked do state.note = ""
+			if kit.list_row(space.id, &state.section, label, .Nav) {
+				if ui.here().is_activated do state.note = ""
+			}
 		}
 	}
 }

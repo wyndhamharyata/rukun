@@ -21,8 +21,8 @@ NEW_TASK_STYLE :: ui.Style {
 }
 
 tasks_page: struct {
-	new_task: kit.Text_Field,
-	search:   kit.Text_Field,
+	new_task: kit.Text_Input,
+	search:   kit.Text_Input,
 	// Each task's title and assignee's name in lower case, for the search.
 	lowered:  [][2]string,
 	shown:    [dynamic]int,
@@ -40,7 +40,7 @@ start_tasks_page :: proc() {
 		tasks_page.lowered[index] = {strings.to_lower(task.title), strings.to_lower(name)}
 	}
 
-	filter_tasks(kit.to_field_text(&tasks_page.search))
+	filter_tasks(kit.to_input_text(&tasks_page.search))
 }
 
 // Adds the New task field's task at the top of the list. The first #name that names a space puts
@@ -51,7 +51,7 @@ add_task :: proc() -> bool {
 	words: [dynamic]string
 	defer delete(words)
 
-	for word in strings.fields(kit.to_field_text(&tasks_page.new_task), context.temp_allocator) {
+	for word in strings.fields(kit.to_input_text(&tasks_page.new_task), context.temp_allocator) {
 		named := find_space(word[1:]) if strings.has_prefix(word, "#") else nil
 
 		if named == nil {
@@ -79,7 +79,7 @@ add_task :: proc() -> bool {
 	)
 
 	tasks_page.selected = task.id
-	kit.set_field_text(&tasks_page.new_task, "")
+	kit.set_input_text(&tasks_page.new_task, "")
 	start_tasks_page()
 
 	return true
@@ -97,11 +97,11 @@ filter_tasks :: proc(query: string) {
 
 // The checkbox's column has no title.
 TASK_COLUMNS := [?]kit.Column {
-	{title = "", width = 40, min_width = 40},
-	{title = "Title"},
-	{title = "Space", width = 140},
-	{title = "Assignee", width = 150},
-	{title = "Due", width = 100},
+	{id = "done", title = "", width = 40, min_width = 40},
+	{id = "title", title = "Title"},
+	{id = "space", title = "Space", width = 140},
+	{id = "assignee", title = "Assignee", width = 150},
+	{id = "due", title = "Due", width = 100},
 }
 
 build_tasks_page :: proc() {
@@ -114,16 +114,11 @@ build_tasks_page :: proc() {
 			{width = ui.fill(), height = ui.points(36), align = .Center, gap = 8},
 		) {
 			kit.heading("Tasks")
-			kit.text_field(
-				&tasks_page.new_task,
-				"new task",
-				"New task #space",
-				style = NEW_TASK_STYLE,
-			)
+			kit.text_field("new_task", &tasks_page.new_task, "New task #space", style = NEW_TASK_STYLE)
 
-			kit.text_field(&tasks_page.search, "search", "Search", style = SEARCH_STYLE)
+			kit.text_field("search", &tasks_page.search, "Search", style = SEARCH_STYLE)
 			if tasks_page.search.is_changed {
-				filter_tasks(kit.to_field_text(&tasks_page.search))
+				filter_tasks(kit.to_input_text(&tasks_page.search))
 				ui.set_scroll(find_task_list(page), 0)
 			}
 		}
@@ -159,14 +154,14 @@ find_task_list :: proc(page: ^ui.Box) -> ^ui.Box {
 build_task_row :: proc(task: ^Task) {
 	if kit.list_row(task.id, &tasks_page.selected) {
 		dim := kit.to_faded(kit.colors.base_content, 0.7)
-		if kit.cell("") do task_checkbox(task)
-		if kit.cell("Title") do kit.text(task.title, dim if task.done else {})
-		if kit.cell("Space") do kit.text(fmt.tprintf("#%s", task.space), dim)
-		if kit.cell("Assignee") {
+		if kit.cell("done") do task_checkbox(task)
+		if kit.cell("title") do kit.text(task.title, dim if task.done else {})
+		if kit.cell("space") do kit.text(fmt.tprintf("#%s", task.space), dim)
+		if kit.cell("assignee") {
 			member := find_member(task.assignee)
 			avatar(member, 20)
 			kit.text(member.name, dim)
 		}
-		if kit.cell("Due") do kit.text(to_date_text(task.due), dim)
+		if kit.cell("due") do kit.text(to_date_text(task.due), dim)
 	}
 }

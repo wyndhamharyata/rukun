@@ -6,13 +6,13 @@ import "thor/ui"
 
 build_note_page :: proc(note: ^Note) {
 	// The scroll's id is the note's, so each note opens at its top.
-	if ui.scroll(note.id, {padding = {24, 40, 24, 24}}) {
+	if ui.col(note.id, {width = ui.fill(), height = ui.fill(), padding = {24, 40, 24, 24}, flags = {.Scroll, .Clip}}) {
 		if ui.col("content", {width = ui.fill(), max_size = {640, 0}}) {
 			kit.text(note.title, font_size = 28, weight = .Bold)
 			gap(16)
 
 			if ui.col("body", {width = ui.fill(), gap = 12}) {
-				for paragraph in note.body do kit.paragraph(paragraph)
+				for paragraph in note.body do kit.text(paragraph, is_wrapped = true)
 			}
 
 			if len(note.checklist) > 0 {
@@ -75,5 +75,5 @@ link :: proc(id, label: string) -> bool {
 		flags      = {.Clickable, .Truncate_Text},
 	}
 
-	return ui.signal(ui.box(id, style, label)).is_clicked
+	return ui.signal(ui.box(id, style, label)).is_activated
 }

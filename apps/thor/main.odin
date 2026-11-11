@@ -144,13 +144,13 @@ avatar :: proc(member: ^Member, size: f32) {
 }
 
 task_checkbox :: proc(task: ^Task) {
-	kit.checkbox("done", &task.done, style = {corner_radius = 8})
+	kit.toggle("done", &task.done, look = .Checkbox, style = {corner_radius = 8})
 }
 
 // A checklist entry: a square checkbox and its text, in a row 24 high.
 entry_row :: proc(id: string, entry: ^Entry) {
 	if ui.row(id, {width = ui.fill(), height = ui.points(24), align = .Center, gap = 8}) {
-		kit.checkbox("done", &entry.done, style = {width = ui.points(14), height = ui.points(14)})
+		kit.toggle("done", &entry.done, look = .Checkbox, style = {width = ui.points(14), height = ui.points(14)})
 		kit.text(entry.text, kit.to_faded(kit.colors.base_content, 0.7) if entry.done else {})
 	}
 }
