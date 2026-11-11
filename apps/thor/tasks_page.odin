@@ -95,10 +95,19 @@ filter_tasks :: proc(query: string) {
 	}
 }
 
+// The checkbox's column has no title.
+TASK_COLUMNS := [?]kit.Column {
+	{title = "", width = 40, min_width = 40},
+	{title = "Title"},
+	{title = "Space", width = 140},
+	{title = "Assignee", width = 150},
+	{title = "Due", width = 100},
+}
+
 build_tasks_page :: proc() {
 	if ui.col("tasks", {width = ui.fill(), height = ui.fill(), padding = {24, 40, 24, 0}}) {
 		page := ui.current_parent()
-		if tasks_page.new_task.is_submitted && add_task() do ui.set_scroll(ui.find_box("list", page), 0)
+		if tasks_page.new_task.is_submitted && add_task() do ui.set_scroll(find_task_list(page), 0)
 
 		if ui.row(
 			"header",
@@ -115,14 +124,11 @@ build_tasks_page :: proc() {
 			kit.text_field(&tasks_page.search, "search", "Search", style = SEARCH_STYLE)
 			if tasks_page.search.is_changed {
 				filter_tasks(kit.to_field_text(&tasks_page.search))
-				ui.set_scroll(ui.find_box("list", page), 0)
+				ui.set_scroll(find_task_list(page), 0)
 			}
 		}
 
 		gap(16)
-		build_column_titles()
-		kit.divider()
-
 		if len(tasks_page.shown) == 0 {
 			empty := ui.Style {
 				width   = ui.fill(),
@@ -134,46 +140,33 @@ build_tasks_page :: proc() {
 			return
 		}
 
-		dev.bench_scroll(ui.find_box("list", page))
+		dev.bench_scroll(find_task_list(page))
 		shown := tasks_page.shown[:]
 
-		if first, last, ok := kit.list("list", len(shown), 34, {padding = {0, 0, 0, 12}}); ok {
+		if first, last, ok := kit.table("list", TASK_COLUMNS[:], len(shown)); ok {
 			for index in shown[first:last] do build_task_row(&rukun.tasks[index])
 		}
 	}
 }
 
-// The header row is 27 high, so with the divider below it the two make 28.
-build_column_titles :: proc() {
-	style := ui.Style {
-		width   = ui.fill(),
-		height  = ui.points(27),
-		align   = .Center,
-		gap     = 16,
-		padding = {12, 0, 12, 0},
-	}
+// The box that scrolls the task table's rows.
+find_task_list :: proc(page: ^ui.Box) -> ^ui.Box {
+	table := ui.find_box("list", page)
 
-	if ui.row("columns", style) {
-		ui.box("", {width = ui.points(16)})
-		kit.text("Title", kit.to_faded(kit.colors.base_content, 0.5), 12, .Semibold, ui.fill(5))
-		kit.text("Space", kit.to_faded(kit.colors.base_content, 0.5), 12, .Semibold, ui.fill(2))
-		kit.text("Assignee", kit.to_faded(kit.colors.base_content, 0.5), 12, .Semibold, ui.fill(2))
-		kit.text("Due", kit.to_faded(kit.colors.base_content, 0.5), 12, .Semibold, ui.points(88), .End)
-	}
+	return ui.find_box("rows", table) if table != nil else nil
 }
 
 build_task_row :: proc(task: ^Task) {
-	if kit.list_row(task.id, &tasks_page.selected, {gap = 16}) {
-		task_checkbox(task)
-		kit.text(task.title, kit.to_faded(kit.colors.base_content, 0.7) if task.done else {}, width = ui.fill(5))
-		kit.text(fmt.tprintf("#%s", task.space), kit.to_faded(kit.colors.base_content, 0.7), width = ui.fill(2))
-
-		if ui.row("assignee", {width = ui.fill(2), align = .Center, gap = 8}) {
+	if kit.list_row(task.id, &tasks_page.selected) {
+		dim := kit.to_faded(kit.colors.base_content, 0.7)
+		if kit.cell("") do task_checkbox(task)
+		if kit.cell("Title") do kit.text(task.title, dim if task.done else {})
+		if kit.cell("Space") do kit.text(fmt.tprintf("#%s", task.space), dim)
+		if kit.cell("Assignee") {
 			member := find_member(task.assignee)
 			avatar(member, 20)
-			kit.text(member.name, kit.to_faded(kit.colors.base_content, 0.7))
+			kit.text(member.name, dim)
 		}
-
-		kit.text(to_date_text(task.due), kit.to_faded(kit.colors.base_content, 0.7), width = ui.points(88), align = .End)
+		if kit.cell("Due") do kit.text(to_date_text(task.due), dim)
 	}
 }
