@@ -27,8 +27,8 @@ Instance :: struct {
 	border_width:  f32,
 	softness:      f32,
 	kind:          Kind,
-	// Radians: 0 runs down and π/2 runs right. Zero keeps gradient_kind's direction.
-	gradient_angle: f32,
+	// Scales every layer's alpha, as the instance's own colors carry its fade.
+	layer_opacity: f32,
 	end_color:     [4]f32,
 	gradient:      [2]f32,
 	// Spins a Solid rect about its center, in radians, clockwise on screen.
@@ -36,6 +36,43 @@ Instance :: struct {
 	gradient_kind: Gradient_Kind,
 	// The color under a glyph. With linear blending it keeps the text's weight, as Ghostty does.
 	under_color:   [4]f32,
+	// push sets them from its layers.
+	layer_first:   u32,
+	layer_count:   u32,
+	_:             [2]u32,
+}
+
+MAX_LAYERS :: 4
+
+Layer_Kind :: enum u32 {
+	None,
+	Gradient,
+	Texture,
+	Surface,
+}
+
+// One layer of a Solid instance, drawn over its color in order. Must match Layer in shaders.metal.
+Layer_Data :: struct {
+	kind:     Layer_Kind,
+	// Normal, Multiply, Screen, Overlay, Soft_Light, as ui.Blend.
+	blend:    u32,
+	is_tiled: b32,
+	// A texture's opacity, or a surface's depth in pixels.
+	amount:   f32,
+	// A gradient's start color, or a surface's light color.
+	from:     [4]f32,
+	to:       [4]f32,
+	// A gradient's stops in xy and angle in radians in z, or a surface's light angle in z.
+	shape:    [4]f32,
+	// The image region that fills the box, or one tile's size in pixels in xy.
+	uv:       [4]f32,
+}
+
+#assert(size_of(Layer_Data) == 80)
+
+Layer :: struct {
+	data:    Layer_Data,
+	texture: ^MTL.Texture,
 }
 
 // With no flags, the gradient runs top to bottom from color to end_color, easing in and out.
@@ -48,14 +85,16 @@ Gradient_Flag :: enum u32 {
 	Linear,
 }
 
-#assert(size_of(Instance) == 160)
+#assert(size_of(Instance) == 176)
 
 _Batch :: struct {
 	texture:     ^MTL.Texture,
 	first_index: int,
 	count:       int,
 	// Erases beneath its instances so glass behind the window shows through.
-	is_clear:    bool,
+	is_clear:       bool,
+	// Layer i of each instance reads texture i.
+	layer_textures: [MAX_LAYERS]^MTL.Texture,
 }
 
 _FRAMES_IN_FLIGHT :: 3
@@ -73,6 +112,7 @@ Surface :: struct {
 	size_pixels:        [2]f32,
 	shown_instances:    [dynamic]Instance,
 	shown_batches:      [dynamic]_Batch,
+	shown_layers:       [dynamic]Layer_Data,
 	shown_size_pixels:  [2]f32,
 	shown_upload_count: int,
 	shown_color_flags:  u32,
@@ -85,10 +125,12 @@ _state: struct {
 	pipelines:     [2][2]^MTL.RenderPipelineState,
 	color_flags:   u32,
 	sampler:       ^MTL.SamplerState,
+	tile_sampler:  ^MTL.SamplerState,
 	white_texture: ^MTL.Texture,
 	// The instances and batches of the current frame, for the target in use.
 	instances:     [dynamic]Instance,
 	batches:       [dynamic]_Batch,
+	layers:        [dynamic]Layer_Data,
 	upload_count:  int,
 	surface:       ^Surface,
 }
@@ -121,6 +163,7 @@ destroy_surface :: proc(target: ^Surface) {
 	for buffer in target.buffers do buffer->release()
 	delete(target.shown_instances)
 	delete(target.shown_batches)
+	delete(target.shown_layers)
 	if _state.surface == target do _state.surface = nil
 	free(target)
 }
@@ -172,6 +215,9 @@ start :: proc(device: ^MTL.Device) {
 	sampler_descriptor->setMinFilter(.Linear)
 	sampler_descriptor->setMagFilter(.Linear)
 	_state.sampler = device->newSamplerState(sampler_descriptor)
+	sampler_descriptor->setSAddressMode(.Repeat)
+	sampler_descriptor->setTAddressMode(.Repeat)
+	_state.tile_sampler = device->newSamplerState(sampler_descriptor)
 
 	white := [4]u8{255, 255, 255, 255}
 	_state.white_texture = make_texture({1, 1}, .RGBA8Unorm)
@@ -220,12 +266,14 @@ begin_frame :: proc(size_pixels: [2]f32) {
 	if layer != nil && layer->pixelFormat() != _to_pixel_format() do layer->setPixelFormat(_to_pixel_format())
 	clear(&_state.instances)
 	clear(&_state.batches)
+	clear(&_state.layers)
 }
 
-// One instance with the texture it draws with. ui keeps these to redraw a box's last frame.
+// One instance with the textures it draws with. ui keeps these to redraw a box's last frame.
 Pushed :: struct {
 	instance: Instance,
 	texture:  ^MTL.Texture,
+	layers:   [MAX_LAYERS]Layer,
 }
 
 pushed_count :: proc() -> int {
@@ -237,24 +285,41 @@ read_pushed :: proc(first: int, into: ^[dynamic]Pushed) {
 	for batch in _state.batches {
 		if batch.is_clear do continue
 		for index in max(first, batch.first_index) ..< batch.first_index + batch.count {
-			append(into, Pushed{_state.instances[index], batch.texture})
+			instance := _state.instances[index]
+			pushed := Pushed{instance = instance, texture = batch.texture}
+			for &layer, slot in pushed.layers[:instance.layer_count] {
+				layer = {_state.layers[int(instance.layer_first) + slot], batch.layer_textures[slot]}
+			}
+			append(into, pushed)
 		}
 	}
 }
 
-push :: proc(instance: Instance, texture: ^MTL.Texture = nil) {
+push :: proc(instance: Instance, texture: ^MTL.Texture = nil, layers: []Layer = nil) {
 	if len(_state.instances) >= _MAX_INSTANCE_COUNT do return
+
+	instance := instance
+	instance.layer_first, instance.layer_count = u32(len(_state.layers)), u32(len(layers))
+	layer_textures: [MAX_LAYERS]^MTL.Texture
+	for layer, slot in layers {
+		append(&_state.layers, layer.data)
+		layer_textures[slot] = layer.texture
+	}
 
 	texture := texture if texture != nil else _state.white_texture
 	batch_count := len(_state.batches)
-	is_after_clear := batch_count > 0 && _state.batches[batch_count - 1].is_clear
-	is_same_texture := batch_count > 0 && _state.batches[batch_count - 1].texture == texture
-	can_join := !is_after_clear && (is_same_texture || (batch_count > 0 && instance.kind == .Solid))
+	last := &_state.batches[batch_count - 1] if batch_count > 0 else nil
+	is_after_clear := last != nil && last.is_clear
+	is_same_texture := last != nil && last.texture == texture
+	// A batch's layer textures are free until an instance with layers takes them.
+	is_same_layers := last != nil && (layer_textures == {} || last.layer_textures == {} || last.layer_textures == layer_textures)
+	can_join := !is_after_clear && is_same_layers && (is_same_texture || (last != nil && instance.kind == .Solid))
 
 	if can_join {
-		_state.batches[batch_count - 1].count += 1
+		last.count += 1
+		if layer_textures != {} do last.layer_textures = layer_textures
 	} else {
-		append(&_state.batches, _Batch{texture, len(_state.instances), 1, false})
+		append(&_state.batches, _Batch{texture, len(_state.instances), 1, false, layer_textures})
 	}
 
 	append(&_state.instances, instance)
@@ -264,7 +329,7 @@ push :: proc(instance: Instance, texture: ^MTL.Texture = nil) {
 push_clear :: proc(rect: [4]f32, corner_radius: [4]f32, clip: [4]f32) {
 	if len(_state.instances) >= _MAX_INSTANCE_COUNT do return
 
-	append(&_state.batches, _Batch{_state.white_texture, len(_state.instances), 1, true})
+	append(&_state.batches, _Batch{_state.white_texture, len(_state.instances), 1, true, {}})
 	append(&_state.instances, Instance{rect = rect, color = {0, 0, 0, 1}, corner_radius = corner_radius, clip = clip})
 }
 
@@ -287,10 +352,12 @@ _encode_pass :: proc(
 	encoder->setFragmentBytes(([^]byte)(&flags)[:size_of(flags)], 1)
 	encoder->setVertexBuffer(buffer, 0, 0)
 	encoder->setFragmentBuffer(buffer, 0, 0)
+	encoder->setFragmentBuffer(buffer, NS.UInteger(_to_layer_offset() if len(_state.layers) > 0 else 0), 2)
 
 	viewport := _state.surface.size_pixels
 	encoder->setVertexBytes(([^]byte)(&viewport)[:size_of(viewport)], 1)
 	encoder->setFragmentSamplerState(_state.sampler, 0)
+	encoder->setFragmentSamplerState(_state.tile_sampler, 1)
 
 	is_clearing := false
 	for batch in _state.batches {
@@ -299,6 +366,9 @@ _encode_pass :: proc(
 			encoder->setRenderPipelineState(_state.pipelines[is_linear][1 if is_clearing else 0])
 		}
 		encoder->setFragmentTexture(batch.texture, 0)
+		for texture, slot in batch.layer_textures {
+			encoder->setFragmentTexture(texture if texture != nil else _state.white_texture, NS.UInteger(1 + slot))
+		}
 		encoder->drawPrimitivesWithInstances(
 			.TriangleStrip,
 			0,
@@ -343,6 +413,12 @@ read_pixels :: proc(allocator := context.allocator) -> (pixels: []u8, size: [2]i
 	return
 }
 
+// Layers follow the instances in the same buffer, at an offset any Mac can bind.
+_to_layer_offset :: proc() -> int {
+	LAYER_ALIGNMENT :: 256
+	return (len(_state.instances) * size_of(Instance) + LAYER_ALIGNMENT - 1) / LAYER_ALIGNMENT * LAYER_ALIGNMENT
+}
+
 _is_same_as_shown :: proc(target: ^Surface, upload_count: int) -> bool {
 	batch_bytes := mem.slice_to_bytes(_state.batches[:])
 	instance_bytes := mem.slice_to_bytes(_state.instances[:])
@@ -351,8 +427,9 @@ _is_same_as_shown :: proc(target: ^Surface, upload_count: int) -> bool {
 	is_same_batches := mem.compare(batch_bytes, mem.slice_to_bytes(target.shown_batches[:])) == 0
 	is_same_instances :=
 		mem.compare(instance_bytes, mem.slice_to_bytes(target.shown_instances[:])) == 0
+	is_same_layers := mem.compare(mem.slice_to_bytes(_state.layers[:]), mem.slice_to_bytes(target.shown_layers[:])) == 0
 
-	return is_same_size && is_unchanged && is_same_batches && is_same_instances
+	return is_same_size && is_unchanged && is_same_batches && is_same_instances && is_same_layers
 }
 
 end_frame :: proc(drawable: ^CA.MetalDrawable) {
@@ -371,7 +448,9 @@ end_frame :: proc(drawable: ^CA.MetalDrawable) {
 	}
 
 	buffer := target.buffers[slot]
-	needed_bytes := len(_state.instances) * size_of(Instance)
+	instance_bytes := len(_state.instances) * size_of(Instance)
+	layer_bytes := len(_state.layers) * size_of(Layer_Data)
+	needed_bytes := _to_layer_offset() + layer_bytes
 
 	if int(buffer->length()) < needed_bytes {
 		capacity := int(buffer->length())
@@ -381,11 +460,11 @@ end_frame :: proc(drawable: ^CA.MetalDrawable) {
 		target.buffers[slot] = buffer
 	}
 
-	intrinsics.mem_copy_non_overlapping(
-		buffer->contentsPointer(),
-		raw_data(_state.instances),
-		needed_bytes,
-	)
+	intrinsics.mem_copy_non_overlapping(buffer->contentsPointer(), raw_data(_state.instances), instance_bytes)
+	if layer_bytes > 0 {
+		layers_at := rawptr(uintptr(buffer->contentsPointer()) + uintptr(_to_layer_offset()))
+		intrinsics.mem_copy_non_overlapping(layers_at, raw_data(_state.layers), layer_bytes)
+	}
 
 	if drawable == nil do return
 
@@ -398,6 +477,7 @@ end_frame :: proc(drawable: ^CA.MetalDrawable) {
 
 	_state.instances, target.shown_instances = target.shown_instances, _state.instances
 	_state.batches, target.shown_batches = target.shown_batches, _state.batches
+	_state.layers, target.shown_layers = target.shown_layers, _state.layers
 	// A frame drawn during a resize has the drawable's old size, and the layer stretches it.
 	texture := drawable->texture()
 	target.shown_size_pixels = {f32(texture->width()), f32(texture->height())}

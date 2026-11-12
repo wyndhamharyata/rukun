@@ -1,6 +1,7 @@
 package ui
 
 import "../font"
+import "../images"
 import "../platform"
 import "../render"
 import "core:math"
@@ -52,18 +53,55 @@ _draw_ghosts :: proc() {
 			append(&gone, key)
 			continue
 		}
-		for pushed in ghost.pushed {
+		for &pushed in ghost.pushed {
 			faded := pushed.instance
 			faded.color.a *= ghost.opacity.value
 			faded.border_color.a *= ghost.opacity.value
 			faded.end_color.a *= ghost.opacity.value
-			render.push(faded, pushed.texture)
+			faded.layer_opacity *= ghost.opacity.value
+			render.push(faded, pushed.texture, pushed.layers[:faded.layer_count])
 		}
 	}
 	for key in gone {
 		delete(_state.ghosts[key].pushed)
 		delete_key(&_state.ghosts, key)
 	}
+}
+
+// A layer that loads an image is skipped until the image is ready.
+_to_painted_layer :: proc(layer: Layer, rect_pixels: [4]f32) -> (painted: render.Layer, ok: bool) {
+	size := [2]f32{rect_pixels.z - rect_pixels.x, rect_pixels.w - rect_pixels.y}
+	switch value in layer {
+	case Gradient:
+		stops := value.stops if value.stops != {} else {0, 1}
+		painted.data = {kind = .Gradient, from = value.from, to = value.to, shape = {stops.x, stops.y, math.to_radians(value.angle), 0}}
+		return painted, true
+	case Texture:
+		painted = _watch_layer_image(value.image, value.tile, size) or_return
+		painted.data.kind, painted.data.blend, painted.data.amount = .Texture, u32(value.blend), 1 - value.fade
+		return painted, true
+	case Surface:
+		painted = _watch_layer_image(value.height_map, value.tile, size) or_return
+		painted.data.kind, painted.data.amount = .Surface, value.depth * _state.pixels_per_point
+		painted.data.from = value.light_color if value.light_color != {} else {1, 1, 1, 1}
+		painted.data.shape.z = math.to_radians(value.light)
+		return painted, true
+	}
+
+	return
+}
+
+_watch_layer_image :: proc(source: string, tile: [2]f32, size_pixels: [2]f32) -> (watched: render.Layer, ok: bool) {
+	if tile == {} {
+		watched.texture, watched.data.uv, _ = images.watch_filling(source, size_pixels)
+	} else {
+		tile_pixels := tile * _state.pixels_per_point
+		watched.texture, _ = images.watch(source, int(math.ceil(max(tile_pixels.x, tile_pixels.y))))
+		watched.data.is_tiled = true
+		watched.data.uv = {tile_pixels.x, tile_pixels.y, 0, 0}
+	}
+
+	return watched, watched.texture != nil
 }
 
 // A glass box clears what is under it so the window's glass shows through, tinted by its background.
@@ -120,6 +158,7 @@ _draw_box :: proc(box: ^Box, clip: [4]f32, parent_opacity: f32, under: [4]f32) {
 		)
 	}
 
+	// shortcut: text reads against the background alone, not its layers. Average them if text on a light gloss reads poorly.
 	inner_under: [4]f32
 	if style.glass != .None {
 		paint, glass_under := _apply_glass(box, background, rect, rect_pixels, clip_pixels)
@@ -128,15 +167,21 @@ _draw_box :: proc(box: ^Box, clip: [4]f32, parent_opacity: f32, under: [4]f32) {
 	} else {
 		inner_under = _lay_over(background, under) if background.a > 0 else under
 	}
-	has_gradient := style.gradient.y > style.gradient.x
-	has_fill := background.a > 0 || style.border_width > 0 || has_gradient
+	layers: [render.MAX_LAYERS]render.Layer
+	layer_count := 0
+	if len(style.layers) > render.MAX_LAYERS do _warn(box, "the box has %d layers, and draws only the first %d.", len(style.layers), render.MAX_LAYERS)
+	for layer in style.layers[:min(len(style.layers), render.MAX_LAYERS)] {
+		painted, ok := _to_painted_layer(layer, rect_pixels)
+		if !ok do continue
+		layers[layer_count] = painted
+		layer_count += 1
+	}
+	has_fill := background.a > 0 || style.border_width > 0 || layer_count > 0
 
 	if has_fill {
 		render.push(
 			{
-				end_color = _to_faded_color(style.end_background, opacity),
-				gradient = style.gradient,
-				gradient_angle = math.to_radians(style.gradient_angle),
+				layer_opacity = opacity,
 				rect = rect_pixels,
 				color = _to_faded_color(background, opacity),
 				border_color = _to_faded_color(style.border_color, opacity),
@@ -145,6 +190,8 @@ _draw_box :: proc(box: ^Box, clip: [4]f32, parent_opacity: f32, under: [4]f32) {
 				softness = style.softness * pixels_per_point,
 				clip = clip_pixels,
 			},
+			nil,
+			layers[:layer_count],
 		)
 	}
 

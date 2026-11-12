@@ -7,6 +7,7 @@ import "core:hash"
 import "core:math"
 import "core:mem"
 import "core:reflect"
+import "core:slice"
 import "core:strings"
 
 // Auto, the zero value, lays out the children as a row.
@@ -79,6 +80,52 @@ Flag :: enum {
 
 Flags :: bit_set[Flag]
 
+// A gradient over what is under it.
+Gradient :: struct {
+	from, to: [4]f32,
+	// Where it starts and ends, from 0 to 1 along angle; zero is {0, 1}.
+	stops:    [2]f32,
+	// Degrees, the way it runs: 0 down, 90 right, 180 up, 270 left.
+	angle:    f32,
+}
+
+Blend :: enum {
+	Normal,
+	Multiply,
+	Screen,
+	Overlay,
+	Soft_Light,
+}
+
+// An image blended into what is under it.
+Texture :: struct {
+	// A full file path, such as from app.resource_path, or a URL that app.run's fetch_image loads.
+	image: string,
+	blend: Blend,
+	// 0 shows it fully, 1 hides it.
+	fade:  f32,
+	// The points one copy covers; zero crops one copy to fill the box.
+	tile:  [2]f32,
+}
+
+// A grayscale height map, lighter for higher, that lights what is under it so it looks tactile.
+Surface :: struct {
+	height_map:  string,
+	// Points from the lowest to the highest part.
+	depth:       f32,
+	// Degrees, where the light comes from: 0 top, 90 right.
+	light:       f32,
+	// The highlights' color; zero is white.
+	light_color: [4]f32,
+	tile:        [2]f32,
+}
+
+Layer :: union {
+	Gradient,
+	Texture,
+	Surface,
+}
+
 Shadow :: struct {
 	color:  [4]f32,
 	offset: [2]f32,
@@ -102,10 +149,8 @@ Style :: struct {
 	softness:         f32,
 	// Drawn under the box with its corners; a zero color draws none.
 	shadow:           Shadow,
-	end_background:   [4]f32,
-	gradient:         [2]f32,
-	// Degrees, the way the gradient runs: 0 down, 90 right, 180 up, 270 left.
-	gradient_angle:   f32,
+	// Drawn over background, first to last, up to render.MAX_LAYERS of them.
+	layers:           []Layer,
 	hover_background: [4]f32,
 	press_background: [4]f32,
 	border_color:     [4]f32,
@@ -515,6 +560,8 @@ _make_box :: proc(key: u64, style: Style) -> ^Box {
 	}
 
 	box.style = style
+	// The app's layers often live on its stack, so the box keeps a copy until it draws.
+	if len(style.layers) > 0 do box.style.layers = slice.clone(style.layers, context.temp_allocator)
 	box.first = nil
 	box.last = nil
 	box.next = nil

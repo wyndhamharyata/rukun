@@ -3,9 +3,7 @@ package kit
 import "../images"
 import "../render"
 import "../ui"
-import "core:math"
 import "core:path/filepath"
-import MTL "vendor:darwin/Metal"
 
 _Image_Paint :: struct {
 	source:    string,
@@ -33,19 +31,14 @@ image :: proc(source: string, style: ui.Style = {}, is_fading := true) -> ui.Sig
 
 _draw_image :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 	paint := cast(^_Image_Paint)box.data
-	size := [2]f32{rect.z - rect.x, rect.w - rect.y}
-	if size.x <= 0 || size.y <= 0 do return
-
-	// images.watch caches by crop, so the aspect snaps to quarter steps.
-	aspect := math.floor(size.x / size.y * 4 + 0.01) / 4
-	texture, fade := images.watch(paint.source, int(math.ceil(max(size.x, size.y))), {aspect, 0.5})
+	texture, uv, fade := images.watch_filling(paint.source, {rect.z - rect.x, rect.w - rect.y})
 	if texture == nil do return
 	if !paint.is_fading do fade = 1
 
 	render.push(
 		{
 			rect = rect,
-			uv = _to_fill_uv(size, texture),
+			uv = uv,
 			color = {1, 1, 1, opacity * fade},
 			corner_radius = box.style.corner_radius * ui.to_pixels(1),
 			clip = clip,
@@ -53,19 +46,4 @@ _draw_image :: proc(box: ^ui.Box, rect, clip: [4]f32, opacity: f32) {
 		},
 		texture,
 	)
-}
-
-// The texture region that fills the box without stretching.
-_to_fill_uv :: proc(size: [2]f32, texture: ^MTL.Texture) -> [4]f32 {
-	box_ratio := size.x / size.y
-	texture_ratio := f32(texture->width()) / f32(texture->height())
-	if abs(box_ratio - texture_ratio) < 0.01 do return {0, 0, 1, 1}
-
-	if texture_ratio > box_ratio {
-		width := box_ratio / texture_ratio
-		return {(1 - width) / 2, 0, (1 + width) / 2, 1}
-	}
-
-	height := texture_ratio / box_ratio
-	return {0, (1 - height) / 2, 1, (1 + height) / 2}
 }

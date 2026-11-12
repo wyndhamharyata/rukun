@@ -11,12 +11,30 @@ struct Instance {
     float border_width;
     float softness;
     uint kind;
-    float gradient_angle;
+    float layer_opacity;
     float4 end_color;
     float2 gradient;
     float rotation;
     uint gradient_kind;
     float4 under_color;
+    uint layer_first;
+    uint layer_count;
+    uint2 reserved;
+};
+
+constant uint layer_gradient = 1;
+constant uint layer_texture = 2;
+constant uint layer_surface = 3;
+
+struct Layer {
+    uint kind;
+    uint blend;
+    uint is_tiled;
+    float amount;
+    float4 from;
+    float4 to;
+    float4 shape;
+    float4 uv;
 };
 
 // What the target holds: linear or gamma, sRGB or Display P3.
@@ -63,12 +81,7 @@ constant uint gradient_across = 1;
 constant uint gradient_linear = 2;
 
 float to_gradient_step(Instance instance, float2 point) {
-    float2 direction = float2(sin(instance.gradient_angle), cos(instance.gradient_angle));
-    float2 half_size = (instance.rect.zw - instance.rect.xy) * 0.5;
-    float reach = abs(half_size.x * direction.x) + abs(half_size.y * direction.y);
-    float along = instance.gradient_angle != 0.0
-        ? 0.5 + dot(point - (instance.rect.xy + instance.rect.zw) * 0.5, direction) / (2.0 * reach)
-        : (instance.gradient_kind & gradient_across) != 0
+    float along = (instance.gradient_kind & gradient_across) != 0
         ? (point.x - instance.rect.x) / (instance.rect.z - instance.rect.x)
         : (point.y - instance.rect.y) / (instance.rect.w - instance.rect.y);
     if ((instance.gradient_kind & gradient_linear) != 0) {
@@ -155,6 +168,82 @@ float to_shadow(float2 offset, float2 half_size, float sigma, float corner) {
     return value;
 }
 
+// W3C's separable blend modes, on straight colors.
+float3 to_blend(float3 below, float3 source, uint mode) {
+    switch (mode) {
+    case 1:
+        return below * source;
+    case 2:
+        return below + source - below * source;
+    case 3:
+        return select(1.0 - 2.0 * (1.0 - below) * (1.0 - source), 2.0 * below * source, below <= 0.5);
+    case 4: {
+        float3 lift = select(sqrt(below), ((16.0 * below - 12.0) * below + 4.0) * below, below <= 0.25);
+        return select(below + (2.0 * source - 1.0) * (lift - below), below - (1.0 - 2.0 * source) * below * (1.0 - below), source <= 0.5);
+    }
+    default:
+        return source;
+    }
+}
+
+// Source over a premultiplied color with a blend mode, as W3C's compositing spec defines it.
+float4 to_blended(float4 below, float3 source, float alpha, uint mode) {
+    float3 straight = below.a > 0.0 ? below.rgb / below.a : float3(0.0);
+    float3 mixed = (1.0 - below.a) * source + below.a * to_blend(straight, source, mode);
+    return float4(alpha * mixed + (1.0 - alpha) * below.rgb, alpha + below.a * (1.0 - alpha));
+}
+
+float2 to_layer_uv(Layer layer, Instance instance, float2 point) {
+    float2 along = point - instance.rect.xy;
+    if (layer.is_tiled != 0) return along / layer.uv.xy;
+    return mix(layer.uv.xy, layer.uv.zw, along / (instance.rect.zw - instance.rect.xy));
+}
+
+float4 to_layer_sample(texture2d<float> image, sampler fill, sampler tile, Layer layer, float2 uv) {
+    return layer.is_tiled != 0 ? image.sample(tile, uv) : image.sample(fill, uv);
+}
+
+float to_height(texture2d<float> image, sampler fill, sampler tile, Layer layer, float2 uv) {
+    return dot(to_layer_sample(image, fill, tile, layer, uv).rgb, float3(0.2126, 0.7152, 0.0722));
+}
+
+float4 to_layered(float4 below, Layer layer, texture2d<float> image, sampler fill, sampler tile, Instance instance, float2 point, uint flags) {
+    float opacity = instance.layer_opacity;
+
+    if (layer.kind == layer_gradient) {
+        float2 direction = float2(sin(layer.shape.z), cos(layer.shape.z));
+        float2 half_size = (instance.rect.zw - instance.rect.xy) * 0.5;
+        float reach = abs(half_size.x * direction.x) + abs(half_size.y * direction.y);
+        float along = 0.5 + dot(point - (instance.rect.xy + instance.rect.zw) * 0.5, direction) / (2.0 * reach);
+        float4 color = mix(to_target(layer.from, flags), to_target(layer.to, flags), smoothstep(layer.shape.x, layer.shape.y, along));
+        return to_blended(below, color.rgb, color.a * opacity, 0);
+    }
+
+    float2 uv = to_layer_uv(layer, instance, point);
+
+    if (layer.kind == layer_texture) {
+        float4 pixel = to_layer_sample(image, fill, tile, layer, uv);
+        float3 source = pixel.a > 0.0 ? to_target(pixel.rgb / pixel.a, flags) : float3(0.0);
+        return to_blended(below, source, pixel.a * layer.amount * opacity, layer.blend);
+    }
+
+    // A surface: the height map's slope, per pixel, lit from shape.z at 45 degrees up.
+    float2 texel = 1.0 / float2(image.get_width(), image.get_height());
+    float2 texel_pixels = layer.is_tiled != 0 ? layer.uv.xy * texel : (instance.rect.zw - instance.rect.xy) / (layer.uv.zw - layer.uv.xy) * texel;
+    float2 slope = float2(
+        to_height(image, fill, tile, layer, uv + float2(texel.x, 0.0)) - to_height(image, fill, tile, layer, uv - float2(texel.x, 0.0)),
+        to_height(image, fill, tile, layer, uv + float2(0.0, texel.y)) - to_height(image, fill, tile, layer, uv - float2(0.0, texel.y))
+    ) * layer.amount / (2.0 * texel_pixels);
+    float3 normal = normalize(float3(-slope, 1.0));
+    float up = 0.70710678;
+    float lit = dot(normal, float3(sin(layer.shape.z) * up, -cos(layer.shape.z) * up, up)) - up;
+    float shade = (lit > 0.0 ? lit / (1.0 - up) : lit / up) * opacity;
+    float3 straight = below.a > 0.0 ? below.rgb / below.a : float3(0.0);
+    float4 light = to_target(layer.from, flags);
+    straight = shade > 0.0 ? mix(straight, light.rgb, min(shade, 1.0) * light.a) : straight * max(0.0, 1.0 + shade);
+    return float4(straight * below.a, below.a);
+}
+
 // Inigo Quilez's signed distance function for a rounded box.
 float to_box_distance(float2 point, float2 half_size, float radius) {
     float2 q = abs(point) - half_size + radius;
@@ -166,7 +255,10 @@ fragment float4 fragment_main(
     const device Instance *instances [[buffer(0)]],
     texture2d<float> image [[texture(0)]],
     sampler texture_sampler [[sampler(0)]],
-    constant uint &flags [[buffer(1)]]
+    constant uint &flags [[buffer(1)]],
+    const device Layer *layers [[buffer(2)]],
+    array<texture2d<float>, 4> layer_textures [[texture(1)]],
+    sampler tile_sampler [[sampler(1)]]
 ) {
     Instance instance = instances[input.instance];
     float2 point = input.point;
@@ -227,6 +319,9 @@ fragment float4 fragment_main(
     // Premultiplied, with the border over the fill: a translucent border tints the fill below it,
     // and its anti-aliased edge blends without a lighter or darker fringe.
     float4 fill = float4(color.rgb * color.a, color.a);
+    for (uint slot = 0; slot < instance.layer_count; slot++) {
+        fill = to_layered(fill, layers[instance.layer_first + slot], layer_textures[slot], texture_sampler, tile_sampler, instance, point, flags);
+    }
 
     if (instance.border_width > 0.0) {
         float border = smoothstep(-0.5, 0.5, distance + instance.border_width);

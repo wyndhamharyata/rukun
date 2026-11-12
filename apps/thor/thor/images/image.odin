@@ -2,6 +2,7 @@ package images
 
 import "../platform"
 import "core:hash"
+import "core:math"
 import "core:slice"
 import "core:strings"
 import "core:sync"
@@ -110,6 +111,30 @@ is_animating :: proc() -> bool {
 // True while an image the frame asked for is still loading.
 is_loading :: proc() -> bool {
 	return _state.loading_count > 0 || len(_state.waiting) > 0
+}
+
+// The image cropped to fill size_pixels, with the region of the texture that fills it.
+watch_filling :: proc(url: string, size_pixels: [2]f32) -> (texture: ^MTL.Texture, uv: [4]f32, opacity: f32) {
+	if size_pixels.x <= 0 || size_pixels.y <= 0 do return
+	// The cache keys on the crop, so the aspect snaps to quarter steps.
+	aspect := math.floor(size_pixels.x / size_pixels.y * 4 + 0.01) / 4
+	texture, opacity = watch(url, int(math.ceil(max(size_pixels.x, size_pixels.y))), {aspect, 0.5})
+	if texture == nil do return
+
+	box_ratio := size_pixels.x / size_pixels.y
+	texture_ratio := f32(texture->width()) / f32(texture->height())
+	switch {
+	case abs(box_ratio - texture_ratio) < 0.01:
+		uv = {0, 0, 1, 1}
+	case texture_ratio > box_ratio:
+		width := box_ratio / texture_ratio
+		uv = {(1 - width) / 2, 0, (1 + width) / 2, 1}
+	case:
+		height := texture_ratio / box_ratio
+		uv = {0, (1 - height) / 2, 1, (1 + height) / 2}
+	}
+
+	return
 }
 
 watch :: proc(
