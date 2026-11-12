@@ -282,6 +282,7 @@ update_accessibility :: proc(window: ^Native_Window, nodes: []Accessibility_Node
 
 	if focused != state.focused {
 		state.focused = focused
+		if !window.is_text_input do objc_send(NS.BOOL, window.ns_window, "makeFirstResponder:", window.input_view)
 		if focused != nil do _post_accessibility(focused, NS.AT("AXFocusedUIElementChanged"))
 	}
 
