@@ -157,8 +157,12 @@ Box :: struct {
 	_motion:          [4]_Animated_Value,
 	_appear:          _Animated_Value,
 	_was_built_last_frame: bool,
-	// A field's text or a slider's percent.
+	// The value in words: a field's text, or a slider's percent.
 	value:            string,
+	// A slider's, splitter's or progress bar's value as a number between the ends of range.
+	// VoiceOver needs both, and then speaks value as the words for it.
+	number:           f32,
+	range:            [2]f32,
 	// Checked, on, selected, or current.
 	is_on:            bool,
 	// The keys that step the value down and up, which VoiceOver's decrement and increment press.
@@ -510,6 +514,8 @@ _make_box :: proc(key: u64, style: Style) -> ^Box {
 	box.value = ""
 	box.is_on = false
 	box.step_keys = {}
+	box.number = 0
+	box.range = {}
 	box.forced = forced_state
 	box._last_built_frame = _state.frame_index
 

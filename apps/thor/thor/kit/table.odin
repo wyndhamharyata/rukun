@@ -61,6 +61,7 @@ resize_handle :: proc(id: string, size: ^f32, range: [2]f32, axis := ui.Axis.X, 
 	grab.role, grab.label, grab.value = .Splitter, id, fmt.tprintf("%.0f", size^)
 	// Increment grows the size, which is the splitter's value.
 	grab.step_keys = keys if sign > 0 else {keys[1], keys[0]}
+	grab.number, grab.range = size^, range
 
 	return signal
 }
@@ -129,7 +130,7 @@ table :: proc(
 	ui.push_parent(ui.box(id, {width = ui.fill(), height = ui.fill(), axis = .Y}))
 	if ui.scope(ui.box("header", {width = ui.fill(), height = ui.points(_TABLE_HEADER_POINTS)})) {
 		for column in placed do _build_column_title(column, sort)
-		for index in 0 ..< len(placed) - 1 do _build_column_edge(&columns[index], placed[index], width_label)
+		for index in 0 ..< len(placed) - 1 do _build_column_edge(&columns[index], placed[index], width_label, placed[len(placed) - 1].x + placed[len(placed) - 1].width)
 	}
 	divider()
 	_window.columns = placed
@@ -227,7 +228,7 @@ _build_column_title :: proc(column: _Placed_Column, sort: ^Sort) {
 	}
 }
 
-_build_column_edge :: proc(column: ^Column, placed: _Placed_Column, width_label: string) {
+_build_column_edge :: proc(column: ^Column, placed: _Placed_Column, width_label: string, table_width: f32) {
 	look := ui.Style {
 		width    = ui.points(_RESIZE_GRAB_POINTS),
 		height   = ui.fill(),
@@ -253,6 +254,7 @@ _build_column_edge :: proc(column: ^Column, placed: _Placed_Column, width_label:
 	if column.width != 0 do column.width = max(column.width, least)
 	edge.role, edge.label, edge.value = .Splitter, fmt.tprintf(width_label, column.title if column.title != "" else edge.id), fmt.tprintf("%.0f", placed.width)
 	edge.step_keys = {.Left, .Right}
+	edge.number, edge.range = placed.width, {least, max(least, table_width)}
 
 	is_active := signal.is_held || edge._hot_fraction > 0.5
 	if ui.scope(edge) {

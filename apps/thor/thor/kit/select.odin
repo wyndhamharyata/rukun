@@ -158,6 +158,7 @@ slider :: proc(
 	box.draw = _draw_slider
 	box.data = paint
 	box.value = fmt.tprintf("%.0f%%", ratio * 100)
+	box.number, box.range = value^, range
 
 	return signal
 }

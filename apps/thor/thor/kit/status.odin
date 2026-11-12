@@ -23,6 +23,7 @@ progress :: proc(ratio: f32, tone := Tone.Primary, width := ui.Size{.Fill, 1}) -
 	box.draw = _draw_bar
 	box.data = paint
 	box.role, box.value = .Progress, fmt.tprintf("%.0f%%", shown * 100)
+	box.number, box.range = shown, {0, 1}
 
 	return ui.signal(box)
 }

@@ -34,6 +34,8 @@ _to_accessibility_nodes :: proc() -> []platform.Accessibility_Node {
 			label       = item.label,
 			value       = box.value,
 			is_on       = box.is_on,
+			number      = box.number,
+			range       = box.range,
 			is_disabled = item.role == .Button && .Clickable not_in box.style.flags,
 			rect        = ui._to_window_points(ui._to_shown_rect(box)),
 		}

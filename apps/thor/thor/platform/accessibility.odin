@@ -48,6 +48,9 @@ Accessibility_Node :: struct {
 	value:       string,
 	is_on:       bool,
 	is_disabled: bool,
+	// A number between the ends of range, for a slider, splitter or progress bar.
+	number:      f32,
+	range:       [2]f32,
 	// In the window's points, measured from its top left.
 	rect:        [4]f32,
 }
@@ -307,6 +310,7 @@ update_accessibility :: proc(window: ^Native_Window, nodes: []Accessibility_Node
 
 _hash_node :: proc(node: Accessibility_Node) -> u64 {
 	look := hash.fnv64a(transmute([]u8)node.label) ~ (hash.fnv64a(transmute([]u8)node.value) * 31)
+	look ~= u64(transmute(u32)node.number) * 0x9e3779b97f4a7c15
 	return look ~ u64(node.role) << 40 ~ u64(node.is_on) << 48 ~ u64(node.is_disabled) << 49
 }
 
@@ -327,7 +331,15 @@ _describe_element :: proc(element: ^NS.Object, node: Accessibility_Node) {
 	case:
 		objc_send(nil, element, "setAccessibilityLabel:", _to_ns_string(node.label))
 		value: rawptr = _to_ns_string(node.value) if node.value != "" else nil
-		objc_send(nil, element, "setAccessibilityValue:", value)
+		if node.range[0] != node.range[1] {
+			// VoiceOver speaks a number as its share of the range, as 0% for text, unless words describe it.
+			objc_send(nil, element, "setAccessibilityValue:", _to_ns_number(node.number))
+			objc_send(nil, element, "setAccessibilityMinValue:", _to_ns_number(node.range[0]))
+			objc_send(nil, element, "setAccessibilityMaxValue:", _to_ns_number(node.range[1]))
+			objc_send(nil, element, "setAccessibilityValueDescription:", value)
+		} else {
+			objc_send(nil, element, "setAccessibilityValue:", value)
+		}
 		objc_send(nil, element, "setAccessibilitySelected:", NS.BOOL(node.is_on))
 	}
 }
@@ -388,6 +400,10 @@ _announce :: proc(text: string) {
 
 _to_ns_string :: proc(text: string) -> ^NS.Object {
 	return objc_send(^NS.Object, NS.String.alloc()->initWithOdinString(text), "autorelease")
+}
+
+_to_ns_number :: proc(value: f32) -> ^NS.Object {
+	return objc_send(^NS.Object, NS.Number, "numberWithDouble:", f64(value))
 }
 
 _to_ns_array :: proc(objects: []^NS.Object) -> ^NS.Array {

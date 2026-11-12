@@ -39,6 +39,8 @@ color_picker :: proc(id: string, color: ^[4]f32, width: f32 = 220) -> ui.Signal 
 	if ui.scope(box) {
 		square := ui.box("square", {width = ui.fill(), height = ui.points(math.round(width * 0.66)), corner_radius = shape.radius_field - _FIELD_INSET_RADIUS, flags = {.Clickable}})
 		square.role, square.label, square.value = .Slider, "saturation and brightness", fmt.tprintf("%.0f%% %.0f%%", hsv[1] * 100, hsv[2] * 100)
+		// Increment and decrement step the brightness, so that is its number.
+		square.number, square.range = hsv[2], {0, 1}
 		_paint(square, hsv, _draw_color_square)
 		signal := ui.signal(square)
 		if ratio, is_held := _to_held_ratio(square, signal); is_held do hsv[1], hsv[2] = ratio.x, 1 - ratio.y
@@ -48,6 +50,7 @@ color_picker :: proc(id: string, color: ^[4]f32, width: f32 = 220) -> ui.Signal 
 		strip := ui.box("hue", {width = ui.fill(), height = ui.points(_COLOR_STRIP_POINTS), corner_radius = _COLOR_STRIP_POINTS / 2, flags = {.Clickable}})
 		strip.role, strip.label, strip.value = .Slider, "hue", fmt.tprintf("%.0f°", hsv[0])
 		strip.step_keys = {.Left, .Right}
+		strip.number, strip.range = hsv[0], {0, 360}
 		_paint(strip, hsv, _draw_hue_strip)
 		strip_signal := ui.signal(strip)
 		if ratio, is_held := _to_held_ratio(strip, strip_signal); is_held do hsv[0] = ratio.x * 360
