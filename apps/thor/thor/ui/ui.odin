@@ -76,6 +76,8 @@ Flag :: enum {
 	Fade_In,
 	// When the app stops building the box, its last frame stays and fades out over _FADE_MOTION.
 	Fade_Out,
+	// The box and its children draw into a texture, which later frames reuse while they draw the same.
+	Rasterize,
 }
 
 Flags :: bit_set[Flag]

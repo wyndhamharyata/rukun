@@ -24,21 +24,61 @@ _Ghost :: struct {
 	drawn_frame: int,
 }
 
+// Inside a raster, boxes draw in its own pixels.
+_raster_depth: int
+
+// Children of a raster draw around the box's top left, and no ancestor cuts them.
+_RASTER_CLIP :: [4]f32{-1e9, -1e9, 1e9, 1e9}
+
 // under is the color behind the box, which its text must read against.
 _draw :: proc(box: ^Box, clip: [4]f32, parent_opacity: f32, under: [4]f32) {
-	if .Fade_Out not_in box.style.flags || box._key == 0 {
-		_draw_box(box, clip, parent_opacity, under)
+	// shortcut: a box inside a raster disappears with no fade out. Draw its copy where the raster is if that shows.
+	if .Fade_Out not_in box.style.flags || box._key == 0 || _raster_depth > 0 {
+		_draw_box_or_raster(box, clip, parent_opacity, under)
 		return
 	}
 
 	first := render.pushed_count()
-	_draw_box(box, clip, parent_opacity, under)
+	_draw_box_or_raster(box, clip, parent_opacity, under)
 	if box._key not_in _state.ghosts do _state.ghosts[box._key] = {}
 	ghost := &_state.ghosts[box._key]
 	clear(&ghost.pushed)
 	render.read_pushed(first, &ghost.pushed)
 	ghost.opacity = {value = 1}
 	ghost.drawn_frame = _state.frame_index
+}
+
+// A raster draws the box and its children in the box's own pixels, so a move, as on a scroll, reuses its texture.
+_draw_box_or_raster :: proc(box: ^Box, clip: [4]f32, parent_opacity: f32, under: [4]f32) {
+	// shortcut: glass clears the window under it, so a glass box never rasters. A glass box inside a raster draws wrong.
+	if .Rasterize not_in box.style.flags || box._key == 0 || box.style.glass != .None {
+		_draw_box(box, clip, parent_opacity, under)
+		return
+	}
+
+	opacity := parent_opacity * (1 - box.style.fade)
+	if opacity <= 0 do return
+
+	// shortcut: a raster out of view draws nothing, so its memory follows the screen, but children reaching past its edges into view are skipped too.
+	shadow := box.style.shadow
+	reach := shadow.blur * 1.5 + max(abs(shadow.offset.x), abs(shadow.offset.y)) + max(shadow.spread, 0) + box.style.softness + 1
+	seen := _intersect(box.rect + {-reach, -reach, reach, reach}, clip)
+	if seen.z <= seen.x || seen.w <= seen.y do return
+
+	origin := box.rect.xy
+	fade := box.style.fade
+	box.style.fade = 0
+	mark := render.begin_raster()
+	_raster_depth += 1
+	_move_subtree(box, -origin)
+	_draw_box(box, _RASTER_CLIP, 1, under)
+	_move_subtree(box, origin)
+	_raster_depth -= 1
+	box.style.fade = fade
+
+	pixels := _state.pixels_per_point
+	origin_pixels := [2]f32{math.round(origin.x * pixels), math.round(origin.y * pixels)}
+	render.end_raster(box._key, mark, origin_pixels, _to_whole_pixels(clip * pixels), opacity)
 }
 
 // shortcut: a fading copy can outlive its image texture after the image cache frees it. Keep

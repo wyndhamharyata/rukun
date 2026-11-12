@@ -93,6 +93,7 @@ float to_gradient_step(Instance instance, float2 point) {
 constant uint kind_glyph = 1;
 constant uint kind_image = 2;
 constant uint kind_shadow = 3;
+constant uint kind_raster = 4;
 
 struct Fragment {
     float4 position [[position]];
@@ -112,19 +113,20 @@ vertex Fragment vertex_main(
     uint vertex_id [[vertex_id]],
     uint instance_id [[instance_id]],
     const device Instance *instances [[buffer(0)]],
-    constant float2 &viewport [[buffer(1)]]
+    constant float4 &viewport [[buffer(1)]]
 ) {
     Instance instance = instances[instance_id];
     float2 corner = float2(vertex_id & 1, vertex_id >> 1);
     // Three standard deviations hold all of a shadow's blur.
-    float padding = instance.kind == kind_glyph ? 0.0 : instance.kind == kind_shadow ? instance.softness * 1.5 + 1.0 : instance.softness + 1.0;
+    bool is_exact = instance.kind == kind_glyph || instance.kind == kind_raster;
+    float padding = is_exact ? 0.0 : instance.kind == kind_shadow ? instance.softness * 1.5 + 1.0 : instance.softness + 1.0;
     float2 point = mix(instance.rect.xy - padding, instance.rect.zw + padding, corner);
     float2 along = (point - instance.rect.xy) / (instance.rect.zw - instance.rect.xy);
     // A turned rect's corners turn with it, so the fragment turns its point back.
     if (instance.rotation != 0.0) point = to_turned(point, (instance.rect.xy + instance.rect.zw) * 0.5, instance.rotation);
 
     Fragment output;
-    output.position = float4(point / viewport * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);
+    output.position = float4((point - viewport.zw) / viewport.xy * float2(2.0, -2.0) + float2(-1.0, 1.0), 0.0, 1.0);
     output.point = point;
     output.uv = mix(instance.uv.xy, instance.uv.zw, along);
     output.instance = instance_id;
@@ -265,6 +267,8 @@ fragment float4 fragment_main(
 
     if (any(point < instance.clip.xy) || any(point > instance.clip.zw)) discard_fragment();
     if (instance.rotation != 0.0) point = to_turned(point, (instance.rect.xy + instance.rect.zw) * 0.5, -instance.rotation);
+
+    if (instance.kind == kind_raster) return image.sample(texture_sampler, input.uv) * instance.color.a;
 
     if (instance.kind == kind_glyph) {
         float coverage = image.sample(texture_sampler, input.uv).r;

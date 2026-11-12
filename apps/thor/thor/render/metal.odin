@@ -2,7 +2,10 @@ package render
 
 import "base:intrinsics"
 import "core:fmt"
+import "core:hash/xxhash"
+import "core:math"
 import "core:mem"
+import "core:slice"
 import NS "core:sys/darwin/Foundation"
 import MTL "vendor:darwin/Metal"
 import CA "vendor:darwin/QuartzCore"
@@ -13,6 +16,8 @@ Kind :: enum u32 {
 	Image = 2,
 	// A Gaussian blur of the rounded rect, as wide as softness.
 	Shadow = 3,
+	// A raster's texture, already in the target's colors.
+	Raster = 4,
 }
 
 // Must match Instance in shaders.metal.
@@ -95,6 +100,36 @@ _Batch :: struct {
 	is_clear:       bool,
 	// Layer i of each instance reads texture i.
 	layer_textures: [MAX_LAYERS]^MTL.Texture,
+	// A raster's texture that the batch draws into, in place of the window.
+	target:         ^MTL.Texture,
+}
+
+MAX_RASTER_PIXELS :: 8192
+
+// A raster is unused this many frames before its texture is freed.
+_RASTER_KEEP_FRAMES :: 120
+
+_Raster :: struct {
+	texture:    ^MTL.Texture,
+	format:     MTL.PixelFormat,
+	// In the box's own pixels.
+	bounds:     [4]f32,
+	hash:       u64,
+	used_frame: int,
+}
+
+_Raster_Pass :: struct {
+	texture:     ^MTL.Texture,
+	bounds:      [4]f32,
+	first_batch: int,
+	// The raster takes this hash once the pass is sent, as a frame built twice draws only its second build.
+	key, hash:   u64,
+}
+
+Raster_Mark :: struct {
+	instance, layer, batch: int,
+	// How many rasters had rendered, so a raster around one that renders again renders too.
+	rendered:               int,
 }
 
 _FRAMES_IN_FLIGHT :: 3
@@ -132,6 +167,12 @@ _state: struct {
 	batches:       [dynamic]_Batch,
 	layers:        [dynamic]Layer_Data,
 	upload_count:  int,
+	rasters:       map[u64]_Raster,
+	raster_passes: [dynamic]_Raster_Pass,
+	rendered:      int,
+	frame_count:   int,
+	// The next push starts a batch of its own.
+	is_batch_cut:  bool,
 	surface:       ^Surface,
 }
 
@@ -267,6 +308,9 @@ begin_frame :: proc(size_pixels: [2]f32) {
 	clear(&_state.instances)
 	clear(&_state.batches)
 	clear(&_state.layers)
+	clear(&_state.raster_passes)
+	_state.frame_count += 1
+	if _state.frame_count % 60 == 0 do _free_unused_rasters()
 }
 
 // One instance with the textures it draws with. ui keeps these to redraw a box's last frame.
@@ -283,7 +327,7 @@ pushed_count :: proc() -> int {
 // Appends every instance from index first on, with its texture.
 read_pushed :: proc(first: int, into: ^[dynamic]Pushed) {
 	for batch in _state.batches {
-		if batch.is_clear do continue
+		if batch.is_clear || batch.target != nil do continue
 		for index in max(first, batch.first_index) ..< batch.first_index + batch.count {
 			instance := _state.instances[index]
 			pushed := Pushed{instance = instance, texture = batch.texture}
@@ -313,13 +357,14 @@ push :: proc(instance: Instance, texture: ^MTL.Texture = nil, layers: []Layer = 
 	is_same_texture := last != nil && last.texture == texture
 	// A batch's layer textures are free until an instance with layers takes them.
 	is_same_layers := last != nil && (layer_textures == {} || last.layer_textures == {} || last.layer_textures == layer_textures)
-	can_join := !is_after_clear && is_same_layers && (is_same_texture || (last != nil && instance.kind == .Solid))
+	can_join := !_state.is_batch_cut && !is_after_clear && is_same_layers && (is_same_texture || (last != nil && instance.kind == .Solid))
+	_state.is_batch_cut = false
 
 	if can_join {
 		last.count += 1
 		if layer_textures != {} do last.layer_textures = layer_textures
 	} else {
-		append(&_state.batches, _Batch{texture, len(_state.instances), 1, false, layer_textures})
+		append(&_state.batches, _Batch{texture, len(_state.instances), 1, false, layer_textures, nil})
 	}
 
 	append(&_state.instances, instance)
@@ -329,14 +374,38 @@ push :: proc(instance: Instance, texture: ^MTL.Texture = nil, layers: []Layer = 
 push_clear :: proc(rect: [4]f32, corner_radius: [4]f32, clip: [4]f32) {
 	if len(_state.instances) >= _MAX_INSTANCE_COUNT do return
 
-	append(&_state.batches, _Batch{_state.white_texture, len(_state.instances), 1, true, {}})
+	append(&_state.batches, _Batch{_state.white_texture, len(_state.instances), 1, true, {}, nil})
 	append(&_state.instances, Instance{rect = rect, color = {0, 0, 0, 1}, corner_radius = corner_radius, clip = clip})
 }
 
-_encode_pass :: proc(
+// Each raster that renders this frame draws into its texture first, then the window draws.
+_encode_pass :: proc(command_buffer: ^MTL.CommandBuffer, target: ^MTL.Texture, buffer: ^MTL.Buffer) {
+	_encode_rasters(command_buffer, buffer)
+	size := _state.surface.size_pixels
+	_encode_batches(command_buffer, target, buffer, {size.x, size.y, 0, 0}, 0, nil)
+}
+
+_commit_rasters :: proc() {
+	for pass in _state.raster_passes {
+		if raster, ok := &_state.rasters[pass.key]; ok do raster.hash = pass.hash
+	}
+}
+
+_encode_rasters :: proc(command_buffer: ^MTL.CommandBuffer, buffer: ^MTL.Buffer) {
+	for pass in _state.raster_passes {
+		viewport := [4]f32{pass.bounds.z - pass.bounds.x, pass.bounds.w - pass.bounds.y, pass.bounds.x, pass.bounds.y}
+		_encode_batches(command_buffer, pass.texture, buffer, viewport, pass.first_batch, pass.texture)
+	}
+}
+
+// Draws the batches from first_batch that draw into only. viewport is the target's size, then where its top left is.
+_encode_batches :: proc(
 	command_buffer: ^MTL.CommandBuffer,
 	target: ^MTL.Texture,
 	buffer: ^MTL.Buffer,
+	viewport: [4]f32,
+	first_batch: int,
+	only: ^MTL.Texture,
 ) {
 	pass := MTL.RenderPassDescriptor.renderPassDescriptor()
 	color := pass->colorAttachments()->object(0)
@@ -354,13 +423,14 @@ _encode_pass :: proc(
 	encoder->setFragmentBuffer(buffer, 0, 0)
 	encoder->setFragmentBuffer(buffer, NS.UInteger(_to_layer_offset() if len(_state.layers) > 0 else 0), 2)
 
-	viewport := _state.surface.size_pixels
+	viewport := viewport
 	encoder->setVertexBytes(([^]byte)(&viewport)[:size_of(viewport)], 1)
 	encoder->setFragmentSamplerState(_state.sampler, 0)
 	encoder->setFragmentSamplerState(_state.tile_sampler, 1)
 
 	is_clearing := false
-	for batch in _state.batches {
+	for batch in _state.batches[first_batch:] {
+		if batch.target != only do continue
 		if batch.is_clear != is_clearing {
 			is_clearing = batch.is_clear
 			encoder->setRenderPipelineState(_state.pipelines[is_linear][1 if is_clearing else 0])
@@ -411,6 +481,146 @@ read_pixels :: proc(allocator := context.allocator) -> (pixels: []u8, size: [2]i
 	texture->getBytes(raw_data(pixels), NS.UInteger(size.x * _BYTES_PER_PIXEL), region, 0)
 
 	return
+}
+
+// Starts what end_raster may draw from a texture. Nothing pushed before it shares a batch with what follows.
+begin_raster :: proc() -> Raster_Mark {
+	_state.is_batch_cut = true
+
+	return {len(_state.instances), len(_state.layers), len(_state.batches), _state.rendered}
+}
+
+// Draws what was pushed since mark, in a box's own pixels, at origin from key's texture, which renders only when it changes.
+end_raster :: proc(key: u64, mark: Raster_Mark, origin: [2]f32, clip: [4]f32, opacity: f32) {
+	if len(_state.instances) == mark.instance do return
+
+	bounds := _to_pushed_bounds(mark.instance)
+	size := [2]f32{bounds.z - bounds.x, bounds.w - bounds.y}
+	if size.x <= 0 || size.y <= 0 do return
+	if size.x > MAX_RASTER_PIXELS || size.y > MAX_RASTER_PIXELS {
+		_place_pushed(mark, origin, clip)
+		return
+	}
+
+	window_key := key ~ u64(uintptr(_state.surface)) * 0x9e3779b97f4a7c15
+	hash := _hash_pushed(mark)
+	raster := _state.rasters[window_key] or_else {}
+	is_same := raster.texture != nil && raster.hash == hash && raster.bounds == bounds && raster.format == _to_pixel_format()
+	if is_same && _state.rendered == mark.rendered {
+		resize(&_state.instances, mark.instance)
+		resize(&_state.layers, mark.layer)
+		resize(&_state.batches, mark.batch)
+	} else {
+		was_size := [2]f32{raster.bounds.z - raster.bounds.x, raster.bounds.w - raster.bounds.y}
+		if raster.texture == nil || was_size != size || raster.format != _to_pixel_format() {
+			if raster.texture != nil do raster.texture->release()
+			raster.texture, raster.format = _make_target({int(size.x), int(size.y)}), _to_pixel_format()
+		}
+		raster.bounds = bounds
+		for &batch in _state.batches[mark.batch:] {
+			if batch.target == nil do batch.target = raster.texture
+		}
+		append(&_state.raster_passes, _Raster_Pass{raster.texture, bounds, mark.batch, window_key, hash})
+		_state.rendered += 1
+	}
+	raster.used_frame = _state.frame_count
+	_state.rasters[window_key] = raster
+
+	_state.is_batch_cut = true
+	moved := [4]f32{origin.x, origin.y, origin.x, origin.y}
+	push({rect = bounds + moved, uv = {0, 0, 1, 1}, color = {1, 1, 1, opacity}, clip = clip, kind = .Raster}, raster.texture)
+}
+
+// The pixels the instances since first cover, padded for their soft edges and cut to their clips.
+_to_pushed_bounds :: proc(first: int) -> [4]f32 {
+	bounds := [4]f32{max(f32), max(f32), min(f32), min(f32)}
+	for instance in _state.instances[first:] {
+		pad: f32
+		#partial switch instance.kind {
+		case .Solid:
+			pad = instance.softness + 1
+		case .Shadow:
+			pad = instance.softness * 1.5 + 1
+		}
+		rect := instance.rect + {-pad, -pad, pad, pad}
+		if instance.rotation != 0 {
+			center := (rect.xy + rect.zw) / 2
+			reach := max(rect.z - rect.x, rect.w - rect.y) * 0.71
+			rect = {center.x - reach, center.y - reach, center.x + reach, center.y + reach}
+		}
+		clip := instance.clip
+		rect = {max(rect.x, clip.x), max(rect.y, clip.y), min(rect.z, clip.z), min(rect.w, clip.w)}
+		if rect.z <= rect.x || rect.w <= rect.y do continue
+
+		bounds = {min(bounds.x, rect.x), min(bounds.y, rect.y), max(bounds.z, rect.z), max(bounds.w, rect.w)}
+	}
+	if bounds.z <= bounds.x do return {}
+
+	return {math.floor(bounds.x), math.floor(bounds.y), math.ceil(bounds.z), math.ceil(bounds.w)}
+}
+
+// Hashes what was pushed since mark in a form that a move of the whole leaves the same.
+_hash_pushed :: proc(mark: Raster_Mark) -> u64 {
+	instances := _state.instances[mark.instance:]
+	layers := mem.slice_to_bytes(_state.layers[mark.layer:])
+	batches := _state.batches[mark.batch:]
+	bytes := make([dynamic]u8, 0, len(instances) * size_of(Instance) + len(layers) + len(batches) * 6 * size_of(rawptr), context.temp_allocator)
+	append(&bytes, ..mem.slice_to_bytes(instances))
+	for &instance in slice.reinterpret([]Instance, bytes[:]) do instance.layer_first -= u32(mark.layer)
+	append(&bytes, ..layers)
+	for batch in batches {
+		textures := [?]rawptr{batch.texture, batch.target, batch.layer_textures[0], batch.layer_textures[1], batch.layer_textures[2], batch.layer_textures[3]}
+		append(&bytes, ..mem.slice_to_bytes(textures[:]))
+	}
+
+	return xxhash.XXH3_64_default(bytes[:])
+}
+
+// Moves what was pushed since mark from a box's own pixels to the window's, cut to clip.
+_place_pushed :: proc(mark: Raster_Mark, origin: [2]f32, clip: [4]f32) {
+	moved := [4]f32{origin.x, origin.y, origin.x, origin.y}
+	for &instance in _state.instances[mark.instance:] {
+		instance.rect += moved
+		instance.clip += moved
+		instance.clip = {max(instance.clip.x, clip.x), max(instance.clip.y, clip.y), min(instance.clip.z, clip.z), min(instance.clip.w, clip.w)}
+	}
+}
+
+_make_target :: proc(size: [2]int) -> ^MTL.Texture {
+	descriptor := MTL.TextureDescriptor.texture2DDescriptorWithPixelFormat(_to_pixel_format(), NS.UInteger(size.x), NS.UInteger(size.y), false)
+	descriptor->setUsage({.RenderTarget, .ShaderRead})
+	descriptor->setStorageMode(.Private)
+
+	return _state.device->newTextureWithDescriptor(descriptor)
+}
+
+_free_unused_rasters :: proc() {
+	gone := make([dynamic]u64, context.temp_allocator)
+	for key, raster in _state.rasters {
+		if _state.frame_count - raster.used_frame > _RASTER_KEEP_FRAMES do append(&gone, key)
+	}
+	for key in gone {
+		_state.rasters[key].texture->release()
+		delete_key(&_state.rasters, key)
+	}
+}
+
+// Draws the last frame again into memory and returns the GPU's seconds for it, for benchmarks.
+time_gpu_frame :: proc() -> f64 {
+	target := _state.surface
+	if target == nil || target.frame_index == 0 do return 0
+
+	pool := NS.AutoreleasePool.alloc()->init()
+	defer pool->drain()
+	size := [2]int{int(target.size_pixels.x), int(target.size_pixels.y)}
+	texture := _make_target(size)
+	defer texture->release()
+	command_buffer := _state.queue->commandBuffer()
+	_encode_pass(command_buffer, texture, target.buffers[(target.frame_index - 1) % _FRAMES_IN_FLIGHT])
+	command_buffer->commit()
+	command_buffer->waitUntilCompleted()
+
+	return f64(command_buffer->GPUEndTime() - command_buffer->GPUStartTime())
 }
 
 // Layers follow the instances in the same buffer, at an offset any Mac can bind.
@@ -466,10 +676,20 @@ end_frame :: proc(drawable: ^CA.MetalDrawable) {
 		intrinsics.mem_copy_non_overlapping(layers_at, raw_data(_state.layers), layer_bytes)
 	}
 
+	// With no window, a frame draws only when read, but its rasters must be ready for the frames after it.
+	if drawable == nil && len(_state.raster_passes) > 0 {
+		command_buffer := _state.queue->commandBuffer()
+		_encode_rasters(command_buffer, buffer)
+		command_buffer->commit()
+		command_buffer->retain()
+		target.command_buffers[slot] = command_buffer
+		_commit_rasters()
+	}
 	if drawable == nil do return
 
 	command_buffer := _state.queue->commandBuffer()
 	_encode_pass(command_buffer, drawable->texture(), buffer)
+	_commit_rasters()
 	command_buffer->presentDrawable(drawable)
 	command_buffer->commit()
 	command_buffer->retain()
