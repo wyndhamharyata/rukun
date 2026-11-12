@@ -161,6 +161,9 @@ Box :: struct {
 	value:            string,
 	// Checked, on, selected, or current.
 	is_on:            bool,
+	// The keys that step the value down and up, which VoiceOver's decrement and increment press.
+	// Zero means Down and Up.
+	step_keys:        [2]platform.Key,
 }
 
 Role :: platform.Role
@@ -251,6 +254,7 @@ Context :: struct {
 	activated_count:        int,
 	activated_device:       Device,
 	secondary_key:          u64,
+	secondary_device:       Device,
 	is_secondary_press:     bool,
 	long_pressed_key:       u64,
 	pressed_at:             [2]f32,
@@ -312,6 +316,7 @@ _begin_frame :: proc(
 	_state.activated_count = 0
 	_state.activated_device = .None
 	_state.secondary_key = 0
+	_state.secondary_device = .None
 	_state.long_pressed_key = 0
 	_state.taken_keys = {}
 	_state.pressed_keys = {}
@@ -504,6 +509,7 @@ _make_box :: proc(key: u64, style: Style) -> ^Box {
 	box.label = ""
 	box.value = ""
 	box.is_on = false
+	box.step_keys = {}
 	box.forced = forced_state
 	box._last_built_frame = _state.frame_index
 

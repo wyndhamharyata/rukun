@@ -75,7 +75,7 @@ _to_weekday :: proc(date: Date) -> int {
 
 // Weeks start on the person's first weekday. Left and Right move a day, Up and Down a week.
 // Page Up and Page Down move a month. Return picks. Sets is_changed on the frame date^ changes.
-calendar :: proc(id: string, date: ^Date) -> ui.Signal {
+calendar :: proc(id: string, date: ^Date, previous_label := "Previous Month", next_label := "Next Month") -> ui.Signal {
 	width: f32 = 7 * _CALENDAR_DAY_POINTS + 6 * _CALENDAR_GAP_POINTS
 	box := ui.box(id, {width = ui.points(width), axis = .Y, gap = 6})
 	state := &_window.calendars
@@ -87,8 +87,8 @@ calendar :: proc(id: string, date: ^Date) -> ui.Signal {
 	if ui.scope(box) {
 		if ui.row("month", {width = ui.fill(), align = .Center, gap = 2, padding = {4, 0, 0, 0}}) {
 			text(format_day(shown, "yMMMM"), font_size = 13, weight = .Semibold)
-			if button("previous_month", icon = "chevron.left", icon_size = 12).is_activated do shown = add_months(shown, -1)
-			if button("next_month", icon = "chevron.right", icon_size = 12).is_activated do shown = add_months(shown, 1)
+			if button("previous_month", icon = "chevron.left", icon_size = 12, tooltip = previous_label).is_activated do shown = add_months(shown, -1)
+			if button("next_month", icon = "chevron.right", icon_size = 12, tooltip = next_label).is_activated do shown = add_months(shown, 1)
 		}
 
 		start := add_days(shown, -((_to_weekday(shown) - platform.read_first_weekday() + 7) % 7))
@@ -184,7 +184,13 @@ _build_day :: proc(calendar_box: ^ui.Box, day, picked, shown, today_date: Date) 
 }
 
 // Shows date^ in the person's short format, or the placeholder. Picking a day closes the calendar.
-date_picker :: proc(id: string, date: ^Date, placeholder := "No date") -> ui.Signal {
+date_picker :: proc(
+	id: string,
+	date: ^Date,
+	placeholder := "No date",
+	previous_label := "Previous Month",
+	next_label := "Next Month",
+) -> ui.Signal {
 	look, _ := _tone_style(.Base, .Solid)
 	look.width = ui.fit_children()
 	look.height = ui.points(_BUTTON_HEIGHT_POINTS)
@@ -217,7 +223,7 @@ date_picker :: proc(id: string, date: ^Date, placeholder := "No date") -> ui.Sig
 				_window.calendars.focus_key = ui._to_key("calendar", ui.current_parent()._seed)
 				_window.calendars.focus_day = date^ if date^ != {} else today()
 			}
-			if calendar("calendar", date).is_changed {
+			if calendar("calendar", date, previous_label, next_label).is_changed {
 				is_changed = true
 				is_open = false
 			}

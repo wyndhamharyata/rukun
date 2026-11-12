@@ -157,6 +157,7 @@ build_note_card :: proc(note: ^Note) {
 		},
 	)
 	if kit.clickable("note", style) {
+		ui.current_parent().label = note.title
 		if ui.here().is_activated do open_note(note.id)
 		kit.text(note.title, weight = .Semibold)
 		if len(note.body) > 0 do kit.text(note.body[0], kit.with_opacity(kit.colors.base_content, 0.7), 12)

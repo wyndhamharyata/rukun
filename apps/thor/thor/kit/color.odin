@@ -47,6 +47,7 @@ color_picker :: proc(id: string, color: ^[4]f32, width: f32 = 220) -> ui.Signal 
 
 		strip := ui.box("hue", {width = ui.fill(), height = ui.points(_COLOR_STRIP_POINTS), corner_radius = _COLOR_STRIP_POINTS / 2, flags = {.Clickable}})
 		strip.role, strip.label, strip.value = .Slider, "hue", fmt.tprintf("%.0f°", hsv[0])
+		strip.step_keys = {.Left, .Right}
 		_paint(strip, hsv, _draw_hue_strip)
 		strip_signal := ui.signal(strip)
 		if ratio, is_held := _to_held_ratio(strip, strip_signal); is_held do hsv[0] = ratio.x * 360

@@ -45,8 +45,8 @@ resize_handle :: proc(id: string, size: ^f32, range: [2]f32, axis := ui.Axis.X, 
 	signal := ui.signal(grab)
 	sign: f32 = 1 if side == .Before else -1
 	_drag(grab, signal, size, axis, sign)
+	keys := [2]platform.Key{.Left, .Right} if is_across else {.Up, .Down}
 	if signal.is_focused && grab.forced == .None {
-		keys := [2]platform.Key{.Left, .Right} if is_across else {.Up, .Down}
 		for key, index in keys {
 			if !ui.is_key_pressed(key) || ui.is_key_taken(key) do continue
 
@@ -59,6 +59,8 @@ resize_handle :: proc(id: string, size: ^f32, range: [2]f32, axis := ui.Axis.X, 
 	is_active := signal.is_held || signal.is_focused || grab._hot_fraction > 0.5
 	line.style.background = colors.primary if is_active else colors.line
 	grab.role, grab.label, grab.value = .Splitter, id, fmt.tprintf("%.0f", size^)
+	// Increment grows the size, which is the splitter's value.
+	grab.step_keys = keys if sign > 0 else {keys[1], keys[0]}
 
 	return signal
 }
@@ -113,6 +115,8 @@ table :: proc(
 	count: int,
 	sort: ^Sort = nil,
 	row_height: f32 = _TABLE_ROW_POINTS,
+	// What VoiceOver reads for the edge that resizes a column; %s is the column's title.
+	width_label := "%s width",
 ) -> (
 	first, last: int,
 	ok: bool,
@@ -125,7 +129,7 @@ table :: proc(
 	ui.push_parent(ui.box(id, {width = ui.fill(), height = ui.fill(), axis = .Y}))
 	if ui.scope(ui.box("header", {width = ui.fill(), height = ui.points(_TABLE_HEADER_POINTS)})) {
 		for column in placed do _build_column_title(column, sort)
-		for index in 0 ..< len(placed) - 1 do _build_column_edge(&columns[index], placed[index])
+		for index in 0 ..< len(placed) - 1 do _build_column_edge(&columns[index], placed[index], width_label)
 	}
 	divider()
 	_window.columns = placed
@@ -223,7 +227,7 @@ _build_column_title :: proc(column: _Placed_Column, sort: ^Sort) {
 	}
 }
 
-_build_column_edge :: proc(column: ^Column, placed: _Placed_Column) {
+_build_column_edge :: proc(column: ^Column, placed: _Placed_Column, width_label: string) {
 	look := ui.Style {
 		width    = ui.points(_RESIZE_GRAB_POINTS),
 		height   = ui.fill(),
@@ -237,8 +241,18 @@ _build_column_edge :: proc(column: ^Column, placed: _Placed_Column) {
 	if column.width == 0 && signal.is_held do column.width = placed.width
 	_drag(edge, signal, &column.width, .X, 1)
 	least := column.min_width if column.min_width > 0 else _TABLE_MIN_COLUMN_POINTS
+	if signal.is_focused && edge.forced == .None {
+		for key, index in ([2]platform.Key{.Left, .Right}) {
+			if !ui.is_key_pressed(key) || ui.is_key_taken(key) do continue
+
+			if column.width == 0 do column.width = placed.width
+			column.width += _RESIZE_KEY_STEP_POINTS * (-1 if index == 0 else 1)
+			ui._state.taken_keys += {int(key)}
+		}
+	}
 	if column.width != 0 do column.width = max(column.width, least)
-	edge.role, edge.label, edge.value = .Splitter, edge.id, fmt.tprintf("%.0f", placed.width)
+	edge.role, edge.label, edge.value = .Splitter, fmt.tprintf(width_label, column.title if column.title != "" else edge.id), fmt.tprintf("%.0f", placed.width)
+	edge.step_keys = {.Left, .Right}
 
 	is_active := signal.is_held || edge._hot_fraction > 0.5
 	if ui.scope(edge) {

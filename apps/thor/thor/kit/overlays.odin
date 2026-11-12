@@ -19,6 +19,9 @@ _Tooltip :: struct {
 	shown_frame:  int,
 }
 
+// button takes a parameter named tooltip, which hides this proc there.
+_show_tooltip :: tooltip
+
 // The anchor must take the pointer: a control or a .Hoverable box.
 tooltip :: proc(anchor: Anchor, text: string) {
 	anchor_box, anchor_rect, ok := _to_anchor(anchor)

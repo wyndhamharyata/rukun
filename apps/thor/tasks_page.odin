@@ -152,6 +152,7 @@ find_task_list :: proc(page: ^ui.Box) -> ^ui.Box {
 
 build_task_row :: proc(task: ^Task) {
 	if kit.list_row(task.id, &tasks_page.selected) {
+		ui.current_parent().label = task.title
 		dim := kit.with_opacity(kit.colors.base_content, 0.7)
 		if kit.cell("done") do task_checkbox(task)
 		if kit.cell("title") do kit.text(task.title, dim if task.done else {})

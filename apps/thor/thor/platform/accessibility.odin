@@ -1,5 +1,6 @@
 package platform
 
+import "base:runtime"
 import "core:hash"
 import NS "core:sys/darwin/Foundation"
 
@@ -35,6 +36,7 @@ Role :: enum {
 	Tooltip,
 	Dialog,
 	Splitter,
+	Scroll_Area,
 }
 
 // One element VoiceOver reads, in build order. parent is its parent's index, or -1.
@@ -61,6 +63,13 @@ _Accessibility :: struct {
 	top:       ^NS.Array,
 	focused:   ^NS.Object,
 	layout:    u64,
+	// The box behind each element, so an action reaches it.
+	info:      map[^NS.Object]_Element_Info,
+}
+
+_Element_Info :: struct {
+	key:  u64,
+	role: Role,
 }
 
 _Placed_Element :: struct {
@@ -71,6 +80,87 @@ _Placed_Element :: struct {
 @(objc_class = "NSAccessibilityElement")
 _NS_Accessibility_Element :: struct {
 	using _: NS.Object,
+}
+
+// thor's elements. They pass VoiceOver's actions to ui as Accessibility_Action events.
+@(objc_class = "ThorAccessibilityElement", objc_superclass = _NS_Accessibility_Element, objc_implement)
+_Thor_Element :: struct {
+	using _: _NS_Accessibility_Element,
+}
+
+_PRESSED :: bit_set[Role]{.Button, .Checkbox, .Toggle, .Menu_Item, .Row, .Radio, .Tab, .Pop_Up}
+_STEPPED :: bit_set[Role]{.Slider, .Splitter}
+
+// Each role offers only these actions, so VoiceOver never announces a press on text.
+_ACTION_NAMES := [?]struct {
+	name:  string,
+	kind:  Accessibility_Action_Kind,
+	roles: bit_set[Role],
+} {
+	{"AXPress", .Press, _PRESSED},
+	{"AXIncrement", .Increment, _STEPPED},
+	{"AXDecrement", .Decrement, _STEPPED},
+	{"AXShowMenu", .Show_Menu, _PRESSED + _STEPPED + {.Text_Field, .Image}},
+	{"AXScrollUpByPage", .Scroll_Page_Back, {.Scroll_Area}},
+	{"AXScrollDownByPage", .Scroll_Page_Forward, {.Scroll_Area}},
+	{"AXScrollLeftByPage", .Scroll_Page_Back, {.Scroll_Area}},
+	{"AXScrollRightByPage", .Scroll_Page_Forward, {.Scroll_Area}},
+}
+
+// The page scrolls are not in AppKit's NSAccessibility protocol, so every action goes through
+// the older pair of methods, which AppKit still asks first.
+@(objc_type = _Thor_Element, objc_implement, objc_name = "accessibilityActionNames")
+_Thor_Element_accessibilityActionNames :: proc "c" (self: ^_Thor_Element) -> ^NS.Array {
+	context = runtime.default_context()
+	_, info := _find_element(self)
+	names := make([dynamic]^NS.Object, context.temp_allocator)
+	for action in _ACTION_NAMES {
+		if info.role in action.roles do append(&names, _to_ns_string(action.name))
+	}
+
+	return _to_ns_array(names[:])
+}
+
+@(objc_type = _Thor_Element, objc_implement, objc_name = "accessibilityPerformAction", objc_selector = "accessibilityPerformAction:")
+_Thor_Element_accessibilityPerformAction :: proc "c" (self: ^_Thor_Element, name: ^NS.String) {
+	context = runtime.default_context()
+	_, info := _find_element(self)
+	for action in _ACTION_NAMES {
+		if info.role in action.roles && action.name == name->odinString() do _queue_action(self, action.kind)
+	}
+}
+
+// ui's focus is the truth, so the getter reads it and the setter only asks ui to move it.
+@(objc_type = _Thor_Element, objc_implement, objc_name = "isAccessibilityFocused")
+_Thor_Element_isAccessibilityFocused :: proc "c" (self: ^_Thor_Element) -> NS.BOOL {
+	window, _ := _find_element(self)
+
+	return window != nil && window.accessibility.focused == self
+}
+
+@(objc_type = _Thor_Element, objc_implement, objc_name = "setAccessibilityFocused", objc_selector = "setAccessibilityFocused:")
+_Thor_Element_setAccessibilityFocused :: proc "c" (self: ^_Thor_Element, is_focused: NS.BOOL) {
+	if is_focused do _queue_action(self, .Focus)
+}
+
+_find_element :: proc "contextless" (element: ^_Thor_Element) -> (^Native_Window, _Element_Info) {
+	for window in _state.windows {
+		if window.is_closed do continue
+		if info, ok := window.accessibility.info[element]; ok do return window, info
+	}
+
+	return nil, {}
+}
+
+_queue_action :: proc "contextless" (element: ^_Thor_Element, kind: Accessibility_Action_Kind) -> NS.BOOL {
+	context = runtime.default_context()
+	window, info := _find_element(element)
+	if window == nil do return false
+
+	append(&window.events, Accessibility_Action{info.key, kind})
+	_request_frame_of(window)
+
+	return true
 }
 
 // The view the window draws in; AppKit asks it for the elements VoiceOver reads.
@@ -153,9 +243,10 @@ update_accessibility :: proc(window: ^Native_Window, nodes: []Accessibility_Node
 	for node, index in nodes {
 		element, has_element := state.elements[node.key]
 		if !has_element {
-			element = objc_send(^NS.Object, objc_send(^NS.Object, _NS_Accessibility_Element, "alloc"), "init")
+			element = objc_send(^NS.Object, objc_send(^NS.Object, _Thor_Element, "alloc"), "init")
 			state.elements[node.key] = element
 		}
+		state.info[element] = {node.key, node.role}
 		elements[index] = element
 		seen[node.key] = true
 
@@ -189,14 +280,9 @@ update_accessibility :: proc(window: ^Native_Window, nodes: []Accessibility_Node
 	state.top = _to_ns_array(top[:])
 	objc_send(nil, state.top, "retain")
 
-	// Done before the releases below, while the element that had focus still exists.
 	if focused != state.focused {
-		if state.focused != nil do objc_send(nil, state.focused, "setAccessibilityFocused:", NS.BOOL(false))
 		state.focused = focused
-		if focused != nil {
-			objc_send(nil, focused, "setAccessibilityFocused:", NS.BOOL(true))
-			_post_accessibility(focused, NS.AT("AXFocusedUIElementChanged"))
-		}
+		if focused != nil do _post_accessibility(focused, NS.AT("AXFocusedUIElementChanged"))
 	}
 
 	gone := make([dynamic]u64, context.temp_allocator)
@@ -206,6 +292,7 @@ update_accessibility :: proc(window: ^Native_Window, nodes: []Accessibility_Node
 	for key in gone {
 		element := state.elements[key]
 		_post_accessibility(element, NS.AT("AXUIElementDestroyed"))
+		delete_key(&state.info, element)
 		element->release()
 		delete_key(&state.elements, key)
 		delete_key(&state.shown, key)
@@ -282,6 +369,8 @@ _to_appkit_role :: proc(role: Role) -> (^NS.String, ^NS.String) {
 		return NS.AT("AXGroup"), NS.AT("AXDialog")
 	case .Splitter:
 		return NS.AT("AXSplitter"), nil
+	case .Scroll_Area:
+		return NS.AT("AXScrollArea"), nil
 	}
 
 	return NS.AT("AXGroup"), nil
@@ -323,5 +412,6 @@ _release_accessibility :: proc(window: ^Native_Window) {
 	delete(state.elements)
 	delete(state.shown)
 	delete(state.placed)
+	delete(state.info)
 	state^ = {}
 }

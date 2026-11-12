@@ -76,6 +76,28 @@ Event :: union {
 	Key_Press,
 	Screen_Change,
 	Appearance_Change,
+	Accessibility_Action,
+}
+
+// VoiceOver, Voice Control or Switch Control asked the element with this key to act.
+Accessibility_Action :: struct {
+	key:  u64,
+	kind: Accessibility_Action_Kind,
+}
+
+Accessibility_Action_Kind :: enum {
+	// Activate it, as a click or Return does.
+	Press,
+	// Step its value up or down, as its arrow keys do.
+	Increment,
+	Decrement,
+	// Its secondary action, as a right click.
+	Show_Menu,
+	// Give it keyboard focus, as the VoiceOver cursor moves onto it.
+	Focus,
+	// Scroll a scroll area by its own size, toward its start or its end.
+	Scroll_Page_Back,
+	Scroll_Page_Forward,
 }
 
 // The appearance or accent color changed in System Settings.

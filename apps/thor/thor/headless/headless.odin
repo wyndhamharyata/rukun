@@ -136,6 +136,23 @@ press :: proc(key: platform.Key, modifiers: platform.Modifiers = {}) {
 	settle()
 }
 
+// Acts on the target as VoiceOver does: .Press for VO-Space, .Increment for VO-Up, and so on.
+perform :: proc(target: Target, action: platform.Accessibility_Action_Kind, loc := #caller_location) {
+	settle()
+	box := find(target, loc)
+	if box == nil do return
+	is_scroll := action == .Scroll_Page_Back || action == .Scroll_Page_Forward
+	if (.Scroll if is_scroll else .Clickable) not_in box.style.flags {
+		log.errorf("headless: %s takes no %v. Target the control or the scroll area itself.", _to_line(box, false), action, location = loc)
+		return
+	}
+	shown := _window_of(box)
+	if shown == nil do return
+
+	platform.step_headless(shown._platform, platform.Accessibility_Action{box._key, action})
+	settle()
+}
+
 // Types text into the text field that has the keyboard.
 type_text :: proc(text: string, loc := #caller_location) {
 	settle()

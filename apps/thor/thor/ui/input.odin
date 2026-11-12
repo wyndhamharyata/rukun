@@ -22,6 +22,8 @@ Device :: enum {
 	Touch,
 	Pen,
 	Keyboard,
+	// VoiceOver, Voice Control or Switch Control asked the element to act.
+	Assistive,
 }
 
 // A press by the pointer, a finger or a pen, until its release. ui keeps one at a time.
@@ -49,7 +51,7 @@ Signal :: struct {
 	is_focused:      bool,
 	// Its action fired this frame: a click, tap, or Return/Space while focused.
 	is_activated:    bool,
-	// 1, 2, or 3 for a single, double, or triple click or tap; 0 when fired from the keyboard.
+	// 1, 2, or 3 for a single, double, or triple click or tap; 0 from the keyboard or an assistive app.
 	count:           int,
 	// A right click, Control-click, two-finger click or touch long press, for a context menu.
 	is_secondary:    bool,
@@ -79,6 +81,7 @@ _apply_events :: proc(events: []platform.Event) {
 
 			if event.button == .Right || .Control in event.modifiers {
 				_state.secondary_key = _state.hot_key
+				_state.secondary_device = .Mouse
 				_state.is_secondary_press = true
 				continue
 			}
@@ -123,6 +126,8 @@ _apply_events :: proc(events: []platform.Event) {
 			if event.name == "insertBacktab:" && !is_tab_kept do _move_focus(-1)
 			// Escape in a text field also arrives through the input method.
 			if event.name == "cancelOperation:" do _state.pressed_keys += {int(platform.Key.Escape)}
+		case platform.Accessibility_Action:
+			_apply_accessibility_action(event)
 		case platform.Text_Insert, platform.Text_Marked, platform.Screen_Change, platform.Appearance_Change:
 		}
 	}
@@ -202,6 +207,7 @@ signal :: proc(box: ^Box) -> Signal {
 		signal.count = _state.activated_count
 		signal.device = _state.activated_device
 	}
+	if signal.is_secondary && signal.device == .None do signal.device = _state.secondary_device
 	if signal.is_held {
 		signal.is_dragged = _state.interaction.is_dragged
 		signal.drag = _state.mouse - _state.interaction.start

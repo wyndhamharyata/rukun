@@ -91,5 +91,5 @@ a_task_typed_and_entered_shows_at_the_top :: proc(t: ^testing.T) {
 	testing.expect_value(t, len(rukun.tasks), count + 1)
 	testing.expect_value(t, rukun.tasks[0].title, "Beli galon")
 	testing.expect_value(t, kit.to_input_text(&tasks_page.new_task), "")
-	testing.expect(t, strings.contains(headless.tree(), "text \"Beli galon\""), "the task shows in the list")
+	testing.expect(t, strings.contains(headless.tree(), "row \"Beli galon\""), "the task shows in the list")
 }
