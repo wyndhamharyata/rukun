@@ -69,9 +69,11 @@ In all, 126 lines added and 111 removed since iteration 2. Each update also copi
 - Measured on thor's gallery, headless and CPU only: a page at rest makes no heap allocation per
   frame and builds in 0.01 to 0.09 ms. Scrolling a list of 10,000 rows makes 6 to 10 allocations
   per frame, which thor frees when the rows leave.
-- Not checked: the app in a live window by the agent (the owner opened it on 11 November),
-  VoiceOver's actions through AppKit in a live window, the bench, and the Tahap A runs on this
-  thor.
+- VoiceOver's actions were checked in a live window of thor's gallery through the Accessibility
+  API, with no sound: 18 of 18 checks pass. The check found that focus was not reported while
+  no text field was active, which thor `63a4472` fixed. VoiceOver itself was not run.
+- Not checked: the app in a live window by the agent (the owner opened it on 11 November), the
+  bench, and the Tahap A runs on this thor.
 
 ## Pain points
 
