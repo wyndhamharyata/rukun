@@ -26,8 +26,7 @@ Input_View_acceptsFirstResponder :: proc "c" (self: ^Input_View) -> NS.BOOL {
 	return NS.BOOL(window != nil && (window.is_text_input || window.accessibility.is_wanted))
 }
 
-// While a text field has the keyboard, or an assistive app reads the window, the input view is
-// first responder, so AppKit asks it which element has focus.
+// AppKit asks the first responder which element has focus, so assistive apps need this view to be it.
 @(objc_type = Input_View, objc_implement, objc_name = "accessibilityFocusedUIElement")
 Input_View_accessibilityFocusedUIElement :: proc "c" (self: ^Input_View) -> ^NS.Object {
 	return _to_focused_element(self)
@@ -188,7 +187,7 @@ set_text_input :: proc(is_on: bool, caret_rect: [4]f32) {
 			objc_send(^NS.Object, window.input_view, "inputContext"),
 			"discardMarkedText",
 		)
-		// Keys still reach thor's event loop first, so only AppKit's question about focus changes.
+		// thor's event loop takes keys before any responder, so this view only answers which element has focus.
 		responder := window.input_view if window.accessibility.is_wanted else nil
 		objc_send(NS.BOOL, window.ns_window, "makeFirstResponder:", responder)
 	}

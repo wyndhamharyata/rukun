@@ -156,7 +156,7 @@ _build_day :: proc(calendar_box: ^ui.Box, day, picked, shown, today_date: Date) 
 	}
 	name := fmt.tprintf("%04d-%02d-%02d", day.year, day.month, day.day)
 	cell := ui.box(name, look, fmt.tprint(day.day))
-	cell.role, cell.label, cell.is_on = .Button, name, is_on
+	cell.role, cell.label, cell.is_on = .Button, format_day(day, "yMMMMEEEEd"), is_on
 	signal := ui.signal(cell)
 
 	// Tab enters the days at the picked one, or today.

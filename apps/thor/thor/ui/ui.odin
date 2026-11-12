@@ -159,15 +159,15 @@ Box :: struct {
 	_was_built_last_frame: bool,
 	// The value in words: a field's text, or a slider's percent.
 	value:            string,
-	// A slider's, splitter's or progress bar's value as a number between the ends of range.
-	// VoiceOver needs both, and then speaks value as the words for it.
+	// value as a number in range, which VoiceOver needs to read a slider or splitter right.
 	number:           f32,
 	range:            [2]f32,
 	// Checked, on, selected, or current.
 	is_on:            bool,
-	// The keys that step the value down and up, which VoiceOver's decrement and increment press.
-	// Zero means Down and Up.
+	// The keys that step the value down and up for VoiceOver; zero means Down and Up.
 	step_keys:        [2]platform.Key,
+	// Where VoiceOver draws its outline when not the box itself, as it never redraws one that moves.
+	accessible_rect:  [4]f32,
 }
 
 Role :: platform.Role
@@ -417,7 +417,7 @@ is_animating :: proc() -> bool {
 	return _state.is_animating
 }
 
-// Call it when a value changes after you built the boxes that read it.
+// For a change that no input caused; a frame with input already builds twice.
 request_frame :: proc() {
 	_state.is_frame_requested = true
 }
@@ -516,6 +516,7 @@ _make_box :: proc(key: u64, style: Style) -> ^Box {
 	box.step_keys = {}
 	box.number = 0
 	box.range = {}
+	box.accessible_rect = {}
 	box.forced = forced_state
 	box._last_built_frame = _state.frame_index
 

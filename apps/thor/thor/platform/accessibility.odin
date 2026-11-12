@@ -53,6 +53,8 @@ Accessibility_Node :: struct {
 	range:       [2]f32,
 	// In the window's points, measured from its top left.
 	rect:        [4]f32,
+	// Where VoiceOver draws its outline; zero means rect. The pointer finds the element at rect.
+	outline:     [4]f32,
 }
 
 _Accessibility :: struct {
@@ -110,8 +112,7 @@ _ACTION_NAMES := [?]struct {
 	{"AXScrollRightByPage", .Scroll_Page_Forward, {.Scroll_Area}},
 }
 
-// The page scrolls are not in AppKit's NSAccessibility protocol, so every action goes through
-// the older pair of methods, which AppKit still asks first.
+// AppKit's protocol has no page scrolls, so every action goes through the older names-and-perform pair.
 @(objc_type = _Thor_Element, objc_implement, objc_name = "accessibilityActionNames")
 _Thor_Element_accessibilityActionNames :: proc "c" (self: ^_Thor_Element) -> ^NS.Array {
 	context = runtime.default_context()
@@ -263,7 +264,7 @@ update_accessibility :: proc(window: ^Native_Window, nodes: []Accessibility_Node
 		}
 
 		rect := _to_screen_rect(window, node.rect)
-		objc_send(nil, element, "setAccessibilityFrame:", rect)
+		objc_send(nil, element, "setAccessibilityFrame:", _to_screen_rect(window, node.outline) if node.outline != {} else rect)
 		append(&state.placed, _Placed_Element{element, rect})
 		if node.parent >= 0 {
 			objc_send(nil, element, "setAccessibilityParent:", elements[node.parent])
@@ -332,7 +333,7 @@ _describe_element :: proc(element: ^NS.Object, node: Accessibility_Node) {
 		objc_send(nil, element, "setAccessibilityLabel:", _to_ns_string(node.label))
 		value: rawptr = _to_ns_string(node.value) if node.value != "" else nil
 		if node.range[0] != node.range[1] {
-			// VoiceOver speaks a number as its share of the range, as 0% for text, unless words describe it.
+			// VoiceOver reads a value with no range as 0%, so it gets the number, its range and the words.
 			objc_send(nil, element, "setAccessibilityValue:", _to_ns_number(node.number))
 			objc_send(nil, element, "setAccessibilityMinValue:", _to_ns_number(node.range[0]))
 			objc_send(nil, element, "setAccessibilityMaxValue:", _to_ns_number(node.range[1]))

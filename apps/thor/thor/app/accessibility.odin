@@ -38,6 +38,7 @@ _to_accessibility_nodes :: proc() -> []platform.Accessibility_Node {
 			range       = box.range,
 			is_disabled = item.role == .Button && .Clickable not_in box.style.flags,
 			rect        = ui._to_window_points(ui._to_shown_rect(box)),
+			outline     = ui._to_window_points(ui._intersect(box.accessible_rect, box.clip)) if box.accessible_rect != {} else {},
 		}
 		append(&path, index)
 	}

@@ -25,7 +25,13 @@ _Color_Paint :: struct {
 
 // Sets color^ but not its alpha, by drag, arrow keys, or a hex such as #3b82f6 on Return.
 // width is in points. Sets is_changed on the frame color^ changes.
-color_picker :: proc(id: string, color: ^[4]f32, width: f32 = 220) -> ui.Signal {
+color_picker :: proc(
+	id: string,
+	color: ^[4]f32,
+	width: f32 = 220,
+	hue_label := "Hue",
+	saturation_label := "Saturation and Brightness",
+) -> ui.Signal {
 	box := ui.box(id, {width = ui.points(width), axis = .Y, gap = 10})
 	is_new := box._key not_in _window.color_pickers
 	if is_new do _window.color_pickers[box._key] = {input = new(Text_Input)}
@@ -38,7 +44,7 @@ color_picker :: proc(id: string, color: ^[4]f32, width: f32 = 220) -> ui.Signal 
 
 	if ui.scope(box) {
 		square := ui.box("square", {width = ui.fill(), height = ui.points(math.round(width * 0.66)), corner_radius = shape.radius_field - _FIELD_INSET_RADIUS, flags = {.Clickable}})
-		square.role, square.label, square.value = .Slider, "saturation and brightness", fmt.tprintf("%.0f%% %.0f%%", hsv[1] * 100, hsv[2] * 100)
+		square.role, square.label, square.value = .Slider, saturation_label, fmt.tprintf("%.0f%% %.0f%%", hsv[1] * 100, hsv[2] * 100)
 		// Increment and decrement step the brightness, so that is its number.
 		square.number, square.range = hsv[2], {0, 1}
 		_paint(square, hsv, _draw_color_square)
@@ -48,7 +54,7 @@ color_picker :: proc(id: string, color: ^[4]f32, width: f32 = 220) -> ui.Signal 
 		hsv[2] += _to_arrow_step(signal, .Down, .Up) * _COLOR_KEY_STEP
 
 		strip := ui.box("hue", {width = ui.fill(), height = ui.points(_COLOR_STRIP_POINTS), corner_radius = _COLOR_STRIP_POINTS / 2, flags = {.Clickable}})
-		strip.role, strip.label, strip.value = .Slider, "hue", fmt.tprintf("%.0f°", hsv[0])
+		strip.role, strip.label, strip.value = .Slider, hue_label, fmt.tprintf("%.0f°", hsv[0])
 		strip.step_keys = {.Left, .Right}
 		strip.number, strip.range = hsv[0], {0, 360}
 		_paint(strip, hsv, _draw_hue_strip)
@@ -94,7 +100,13 @@ color_picker :: proc(id: string, color: ^[4]f32, width: f32 = 220) -> ui.Signal 
 }
 
 // A swatch of color^ that opens a color_picker in a popover. width is the picker's width in points.
-color_well :: proc(id: string, color: ^[4]f32, width: f32 = 220) -> ui.Signal {
+color_well :: proc(
+	id: string,
+	color: ^[4]f32,
+	width: f32 = 220,
+	hue_label := "Hue",
+	saturation_label := "Saturation and Brightness",
+) -> ui.Signal {
 	look := ui.Style {
 		width            = ui.points(44),
 		height           = ui.points(_BUTTON_HEIGHT_POINTS),
@@ -116,7 +128,7 @@ color_well :: proc(id: string, color: ^[4]f32, width: f32 = 220) -> ui.Signal {
 	if trigger.is_activated do is_open = !is_open
 	is_changed := false
 	if popover(fmt.tprintf("%s_picker", id), &is_open, box) {
-		if ui.col("padding", {padding = 6}) do is_changed = color_picker("picker", color, width).is_changed
+		if ui.col("padding", {padding = 6}) do is_changed = color_picker("picker", color, width, hue_label, saturation_label).is_changed
 	}
 
 	if is_open {

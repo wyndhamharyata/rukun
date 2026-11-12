@@ -55,6 +55,12 @@ resize_handle :: proc(id: string, size: ^f32, range: [2]f32, axis := ui.Axis.X, 
 		}
 	}
 	size^ = clamp(size^, range[0], range[1])
+	// VoiceOver's outline stays where it first measured the edge, so it outlines the edge's whole track.
+	along := 0 if is_across else 1
+	travel := size^ - range[0] if sign > 0 else range[1] - size^
+	grab.accessible_rect = line.rect
+	grab.accessible_rect[along] = line.rect[along] - travel - _RESIZE_GRAB_POINTS / 2
+	grab.accessible_rect[along + 2] = grab.accessible_rect[along] + range[1] - range[0] + _RESIZE_GRAB_POINTS
 
 	is_active := signal.is_held || signal.is_focused || grab._hot_fraction > 0.5
 	line.style.background = colors.primary if is_active else colors.line
@@ -255,6 +261,11 @@ _build_column_edge :: proc(column: ^Column, placed: _Placed_Column, width_label:
 	edge.role, edge.label, edge.value = .Splitter, fmt.tprintf(width_label, column.title if column.title != "" else edge.id), fmt.tprintf("%.0f", placed.width)
 	edge.step_keys = {.Left, .Right}
 	edge.number, edge.range = placed.width, {least, max(least, table_width)}
+	// The track runs from the column's least width to the table's end, as for resize_handle.
+	header_x := edge.rect.x - (placed.x + placed.width - _RESIZE_GRAB_POINTS / 2)
+	edge.accessible_rect = edge.rect
+	edge.accessible_rect.x = header_x + placed.x + least - _RESIZE_GRAB_POINTS / 2
+	edge.accessible_rect.z = max(edge.accessible_rect.x, header_x + table_width) + _RESIZE_GRAB_POINTS / 2
 
 	is_active := signal.is_held || edge._hot_fraction > 0.5
 	if ui.scope(edge) {

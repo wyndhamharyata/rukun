@@ -332,8 +332,7 @@ _capture :: proc(config: Config, frame: proc(), fetch_image: images.Fetch_Proc, 
 	fmt.printfln("captured %dx%d to %s", size.x, size.y, dev.capture_path)
 }
 
-// On a size or zoom change, builds the frame twice and draws only the second.
-// So a last-frame box size read in a build always matches this frame on screen.
+// Builds twice when the size, zoom or input changed and draws the second, so the screen shows the state.
 _run_settled :: proc() -> bool {
 	shown := _find_by_platform(platform.current_window())
 	if shown == nil do return false
@@ -343,8 +342,9 @@ _run_settled :: proc() -> bool {
 	context.temp_allocator = runtime.arena_allocator(&shown._temp)
 	_apply_zoom_events(platform.list_events())
 
+	shown._frame_start = platform.now()
 	layout_size := native_window.size_points / zoom
-	if layout_size == shown._layout_size do return shown._on_frame()
+	if layout_size == shown._layout_size && len(native_window.events) == 0 do return shown._on_frame()
 
 	shown._layout_size = layout_size
 	shown._is_unseen = true
@@ -365,7 +365,6 @@ begin_frame :: proc() -> (frame_seconds: f32) {
 	start := platform.now()
 	frame_seconds = f32(time.duration_seconds(time.tick_diff(shown._last_frame, start)))
 	shown._last_frame = start
-	shown._frame_start = start
 	if !shown._is_unseen do dev.begin_frame(start)
 
 	render.begin_frame(native_window.size_points * native_window.pixels_per_point)

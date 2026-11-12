@@ -180,6 +180,9 @@ _read_focus_order :: proc(box: ^Box, group: u64) {
 	is_focusable := .Clickable in box.style.flags && box._key != 0 && box.forced == .None
 
 	if is_focusable {
+		if box.role != .None && _is_id_on_path(box, box.label) {
+			_warn(box, "VoiceOver reads the id \"%s\" for this control. Give it a label, a tooltip if it is an icon button, or set box.label.", box.label)
+		}
 		append(&_state.focus_order, _Focus_Stop{box._key, inner_group})
 		// Inside a group, arrows move between its controls, never into the controls within them.
 		if inner_group != 0 do return
@@ -206,4 +209,10 @@ _scroll_into_view :: proc(box: ^Box) {
 
 	set_scroll(scroller, scroller.scroll + shift)
 	request_frame()
+}
+
+_is_id_on_path :: proc(box: ^Box, text: string) -> bool {
+	for at := box; at != nil; at = at.parent do if at.id != "" && at.id == text do return true
+
+	return false
 }

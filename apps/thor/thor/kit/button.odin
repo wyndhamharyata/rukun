@@ -27,8 +27,7 @@ _button_metrics := [Button_Size]_Button_Metrics {
 	.Large  = {40, 15, 14, 20},
 }
 
-// icon is an SF Symbol name. Without a label, the button is square and Auto uses Ghost style, and
-// tooltip shows on hover and is what VoiceOver reads.
+// icon is an SF Symbol name. Without a label, the button is square and Auto uses Ghost style.
 // A zero icon_color uses the label color. Disabled buttons fade and ignore clicks.
 button :: proc(
 	id: string,
@@ -42,6 +41,7 @@ button :: proc(
 	icon_color: [4]f32 = {},
 	is_disabled := false,
 	style: ui.Style = {},
+	// Shown on hover, and read by VoiceOver when there is no label.
 	tooltip := "",
 ) -> ui.Signal {
 	metrics := _button_metrics[size]
