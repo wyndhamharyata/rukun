@@ -79,6 +79,15 @@ Flag :: enum {
 
 Flags :: bit_set[Flag]
 
+Shadow :: struct {
+	color:  [4]f32,
+	offset: [2]f32,
+	// In points. A Gaussian blur, as wide as CSS's blur, for any size of box.
+	blur:   f32,
+	// Grows the shadow past the box before the blur; negative shrinks it.
+	spread: f32,
+}
+
 Style :: struct {
 	width, height:    Size,
 	axis:             Axis,
@@ -91,13 +100,18 @@ Style :: struct {
 	text_offset:      f32,
 	background:       [4]f32,
 	softness:         f32,
+	// Drawn under the box with its corners; a zero color draws none.
+	shadow:           Shadow,
 	end_background:   [4]f32,
 	gradient:         [2]f32,
+	// Degrees, the way the gradient runs: 0 down, 90 right, 180 up, 270 left.
+	gradient_angle:   f32,
 	hover_background: [4]f32,
 	press_background: [4]f32,
 	border_color:     [4]f32,
 	border_width:     f32,
-	corner_radius:    f32,
+	// Top left, top right, bottom right, bottom left. One number sets all four.
+	corner_radius:    [4]f32,
 	text_color:       [4]f32,
 	font_weight:      font.Weight,
 	font_size:        f32,
@@ -537,6 +551,12 @@ row :: proc(id: string, style: Style = {}) -> bool {
 	style.axis = .X
 	push_parent(box(id, style))
 	return true
+}
+
+// An empty box this many points long along the parent's axis, for a gap unlike the parent's own.
+space :: proc(length: f32) {
+	along := Style{width = points(length)} if current_parent().style.axis != .Y else Style{height = points(length)}
+	box("", along)
 }
 
 // Lays out the if block's children top to bottom.

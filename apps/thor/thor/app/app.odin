@@ -379,6 +379,7 @@ begin_frame :: proc() -> (frame_seconds: f32) {
 	}
 	ui._begin_frame(native_window.size_points, native_window.pixels_per_point, zoom, frame_seconds, events)
 	shown.size_points = ui.window_size()
+	if shown.id == MAIN_WINDOW && !shown._is_unseen do dev._bench_scroll()
 	ui._default_text_color = kit.colors.base_content
 	ui._is_glass_shown = !platform.is_headless() && !ui.preferences().is_reducing_transparency
 	ui._glass_fallback = kit.colors.base_100

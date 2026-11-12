@@ -282,6 +282,16 @@ motion := Motions {
 	slow = {duration = 0.4, bounce = 0.15},
 }
 
+// The shadows under kit's menus and dialogs. Their color follows colors.shadow.
+Shadows :: struct {
+	menu, dialog: ui.Shadow,
+}
+
+shadows := Shadows {
+	menu   = {offset = {0, 8}, blur = 12},
+	dialog = {offset = {0, 12}, blur = 20},
+}
+
 shape := Shape {
 	radius_selector = 4,
 	radius_field    = 8,

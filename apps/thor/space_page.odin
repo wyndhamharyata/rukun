@@ -3,7 +3,6 @@ package main
 import "core:fmt"
 import "core:strings"
 import "thor/app"
-import "thor/dev"
 import "thor/kit"
 import "thor/ui"
 
@@ -28,8 +27,7 @@ build_space_page :: proc(space: ^Space) {
 			kit.heading(fmt.tprintf("#%s", space.name))
 		}
 
-		gap(8)
-		dev.bench_scroll(ui.find_box(space.id, page))
+		ui.space(8)
 		items := space.items
 		changes := ui.Style {
 			gap     = 16,
@@ -48,7 +46,7 @@ build_space_page :: proc(space: ^Space) {
 			for &item in items[first:last] do build_item(&item)
 		}
 
-		gap(12)
+		ui.space(12)
 		placeholder := fmt.tprintf("Message #%s", space.name)
 		kit.text_field("composer", &composer, placeholder, style = COMPOSER_STYLE)
 	}
@@ -140,7 +138,7 @@ build_task_card :: proc(task: ^Task) {
 build_list_card :: proc(item: ^Item) {
 	if ui.col("list", to_card_style({padding = 12})) {
 		kit.text(item.title, weight = .Semibold)
-		gap(6)
+		ui.space(6)
 
 		for &entry, index in item.entries do entry_row(fmt.tprint(index), &entry)
 	}

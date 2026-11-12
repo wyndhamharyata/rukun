@@ -19,9 +19,9 @@ build_sidebar :: proc() {
 			if ui.here().is_activated do state.note = ""
 		}
 
-		gap(4)
+		ui.space(4)
 		kit.divider()
-		gap(4)
+		ui.space(4)
 
 		for space in rukun.spaces {
 			label := fmt.tprintf("#%s", space.name)

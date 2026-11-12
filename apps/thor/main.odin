@@ -174,10 +174,6 @@ now_text :: proc() -> string {
 	return fmt.aprintf("%04d-%02d-%02dT%02d:%02d", year, int(month), day, hour, minute)
 }
 
-gap :: proc(points: f32) {
-	ui.box("", {height = ui.points(points)})
-}
-
 MONTHS := [12]string {
 	"Jan",
 	"Feb",

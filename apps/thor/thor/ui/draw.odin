@@ -76,7 +76,8 @@ _apply_glass :: proc(box: ^Box, background: [4]f32, rect, rect_pixels, clip_pixe
 	}
 
 	render.push_clear(rect_pixels, box.style.corner_radius * _state.pixels_per_point, clip_pixels)
-	area := platform.Glass_Area{_to_window_points(rect), box.style.corner_radius * _state.zoom, box.style.glass, background}
+	// shortcut: NSGlassEffectView takes one radius, so glass rounds every corner by the top left's. Mask the view for per-corner glass.
+	area := platform.Glass_Area{_to_window_points(rect), box.style.corner_radius[0] * _state.zoom, box.style.glass, background}
 	append(&_state.glass_areas, area)
 
 	return {}, _glass_fallback
@@ -102,6 +103,23 @@ _draw_box :: proc(box: ^Box, clip: [4]f32, parent_opacity: f32, under: [4]f32) {
 		box._active_fraction,
 	)
 
+	if style.shadow.color.a > 0 {
+		shadow := style.shadow
+		moved := [4]f32{shadow.offset.x, shadow.offset.y, shadow.offset.x, shadow.offset.y}
+		radius := style.corner_radius + shadow.spread
+		for &corner in radius do corner = max(corner, 0)
+		render.push(
+			{
+				rect = rect_pixels + ([4]f32{-1, -1, 1, 1} * shadow.spread + moved) * pixels_per_point,
+				color = _to_faded_color(shadow.color, opacity),
+				corner_radius = radius * pixels_per_point,
+				softness = shadow.blur * pixels_per_point,
+				clip = clip_pixels,
+				kind = .Shadow,
+			},
+		)
+	}
+
 	inner_under: [4]f32
 	if style.glass != .None {
 		paint, glass_under := _apply_glass(box, background, rect, rect_pixels, clip_pixels)
@@ -118,6 +136,7 @@ _draw_box :: proc(box: ^Box, clip: [4]f32, parent_opacity: f32, under: [4]f32) {
 			{
 				end_color = _to_faded_color(style.end_background, opacity),
 				gradient = style.gradient,
+				gradient_angle = math.to_radians(style.gradient_angle),
 				rect = rect_pixels,
 				color = _to_faded_color(background, opacity),
 				border_color = _to_faded_color(style.border_color, opacity),

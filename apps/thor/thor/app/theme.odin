@@ -39,6 +39,7 @@ _apply_theme :: proc(events: []platform.Event) {
 
 	// Each window picks up its background from it as its next frame begins.
 	kit.colors = colors
+	kit.shadows.menu.color, kit.shadows.dialog.color = colors.shadow, colors.shadow
 	ui.request_frame()
 }
 

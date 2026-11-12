@@ -75,18 +75,6 @@ _begin_popover :: proc(id: string, is_open: ^bool, anchor: Anchor, width: f32) -
 	}
 
 	ui.push_parent(ui._state.overlay_root)
-	if size.y > 0 {
-		shadow := ui.Style {
-			width         = ui.points(size.x),
-			height        = ui.points(size.y),
-			corner_radius = shape.radius_box + 2,
-			background    = colors.shadow,
-			softness      = 24,
-			position      = position + {0, 8},
-			flags         = {.Floating, .Fade_In, .Fade_Out},
-		}
-		ui.box(fmt.tprintf("%s_shadow", id), shadow)
-	}
 	panel := ui.Style {
 		width         = ui.points(width) if width > 0 else ui.fit_children(),
 		min_size      = {0 if width > 0 else max(_POPOVER_MIN_WIDTH_POINTS, anchor_rect.z - anchor_rect.x), 0},
@@ -95,6 +83,7 @@ _begin_popover :: proc(id: string, is_open: ^bool, anchor: Anchor, width: f32) -
 		padding       = 5,
 		corner_radius = shape.radius_box,
 		background    = colors.popover,
+		shadow        = shadows.menu,
 		border_width  = shape.border,
 		border_color  = colors.line,
 		position      = position,

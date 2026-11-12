@@ -7,10 +7,11 @@ struct Instance {
     float4 color;
     float4 border_color;
     float4 clip;
-    float corner_radius;
+    float4 corner_radius;
     float border_width;
     float softness;
     uint kind;
+    float gradient_angle;
     float4 end_color;
     float2 gradient;
     float rotation;
@@ -62,7 +63,12 @@ constant uint gradient_across = 1;
 constant uint gradient_linear = 2;
 
 float to_gradient_step(Instance instance, float2 point) {
-    float along = (instance.gradient_kind & gradient_across) != 0
+    float2 direction = float2(sin(instance.gradient_angle), cos(instance.gradient_angle));
+    float2 half_size = (instance.rect.zw - instance.rect.xy) * 0.5;
+    float reach = abs(half_size.x * direction.x) + abs(half_size.y * direction.y);
+    float along = instance.gradient_angle != 0.0
+        ? 0.5 + dot(point - (instance.rect.xy + instance.rect.zw) * 0.5, direction) / (2.0 * reach)
+        : (instance.gradient_kind & gradient_across) != 0
         ? (point.x - instance.rect.x) / (instance.rect.z - instance.rect.x)
         : (point.y - instance.rect.y) / (instance.rect.w - instance.rect.y);
     if ((instance.gradient_kind & gradient_linear) != 0) {
@@ -73,6 +79,7 @@ float to_gradient_step(Instance instance, float2 point) {
 
 constant uint kind_glyph = 1;
 constant uint kind_image = 2;
+constant uint kind_shadow = 3;
 
 struct Fragment {
     float4 position [[position]];
@@ -96,7 +103,8 @@ vertex Fragment vertex_main(
 ) {
     Instance instance = instances[instance_id];
     float2 corner = float2(vertex_id & 1, vertex_id >> 1);
-    float padding = instance.kind == kind_glyph ? 0.0 : instance.softness + 1.0;
+    // Three standard deviations hold all of a shadow's blur.
+    float padding = instance.kind == kind_glyph ? 0.0 : instance.kind == kind_shadow ? instance.softness * 1.5 + 1.0 : instance.softness + 1.0;
     float2 point = mix(instance.rect.xy - padding, instance.rect.zw + padding, corner);
     float2 along = (point - instance.rect.xy) / (instance.rect.zw - instance.rect.xy);
     // A turned rect's corners turn with it, so the fragment turns its point back.
@@ -108,6 +116,43 @@ vertex Fragment vertex_main(
     output.uv = mix(instance.uv.xy, instance.uv.zw, along);
     output.instance = instance_id;
     return output;
+}
+
+// The radius of the corner nearest offset, which is measured from the box's center.
+float to_corner_radius(float2 offset, float4 radii) {
+    return offset.y < 0.0 ? (offset.x < 0.0 ? radii.x : radii.y) : (offset.x < 0.0 ? radii.w : radii.z);
+}
+
+// Evan Wallace's closed-form Gaussian blur of a rounded rect, right for any blur on any size.
+float to_gaussian(float x, float sigma) {
+    return exp(-(x * x) / (2.0 * sigma * sigma)) / (2.5066283 * sigma);
+}
+
+float2 to_erf(float2 x) {
+    float2 s = sign(x), a = abs(x);
+    x = 1.0 + (0.278393 + (0.230389 + 0.078108 * (a * a)) * a) * a;
+    x *= x;
+    return s - s / (x * x);
+}
+
+float to_shadow_row(float x, float y, float sigma, float corner, float2 half_size) {
+    float delta = min(half_size.y - corner - abs(y), 0.0);
+    float curved = half_size.x - corner + sqrt(max(0.0, corner * corner - delta * delta));
+    float2 integral = 0.5 + 0.5 * to_erf((x + float2(-curved, curved)) * (0.70710678 / sigma));
+    return integral.y - integral.x;
+}
+
+float to_shadow(float2 offset, float2 half_size, float sigma, float corner) {
+    float start = clamp(-3.0 * sigma, offset.y - half_size.y, offset.y + half_size.y);
+    float end = clamp(3.0 * sigma, offset.y - half_size.y, offset.y + half_size.y);
+    float step = (end - start) / 4.0;
+    float y = start + step * 0.5;
+    float value = 0.0;
+    for (int i = 0; i < 4; i++) {
+        value += to_shadow_row(offset.x, offset.y - y, sigma, corner, half_size) * to_gaussian(y, sigma) * step;
+        y += step;
+    }
+    return value;
 }
 
 // Inigo Quilez's signed distance function for a rounded box.
@@ -147,7 +192,15 @@ fragment float4 fragment_main(
 
     float2 half_size = (instance.rect.zw - instance.rect.xy) * 0.5;
     float2 center = (instance.rect.xy + instance.rect.zw) * 0.5;
-    float radius = min(instance.corner_radius, min(half_size.x, half_size.y));
+
+    if (instance.kind == kind_shadow) {
+        float2 offset = point - center;
+        float corner = min(to_corner_radius(offset, instance.corner_radius), min(half_size.x, half_size.y));
+        float4 color = to_target(instance.color, flags);
+        return float4(color.rgb * color.a, color.a) * to_shadow(offset, half_size, max(instance.softness * 0.5, 0.5), corner);
+    }
+
+    float radius = min(to_corner_radius(point - center, instance.corner_radius), min(half_size.x, half_size.y));
     float distance = to_box_distance(point - center, half_size, radius);
     float softness = max(instance.softness, 1.0);
     float coverage = 1.0 - smoothstep(-softness * 0.5, softness * 0.5, distance);

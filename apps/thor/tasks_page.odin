@@ -2,7 +2,6 @@ package main
 
 import "core:fmt"
 import "core:strings"
-import "thor/dev"
 import "thor/kit"
 import "thor/ui"
 
@@ -122,7 +121,7 @@ build_tasks_page :: proc() {
 			}
 		}
 
-		gap(16)
+		ui.space(16)
 		if len(tasks_page.shown) == 0 {
 			empty := ui.Style {
 				width   = ui.fill(),
@@ -134,7 +133,6 @@ build_tasks_page :: proc() {
 			return
 		}
 
-		dev.bench_scroll(find_task_list(page))
 		shown := tasks_page.shown[:]
 
 		if first, last, ok := kit.table("list", TASK_COLUMNS[:], len(shown)); ok {

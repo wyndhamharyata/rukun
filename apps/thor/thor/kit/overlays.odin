@@ -126,18 +126,6 @@ _begin_dialog :: proc(id: string, is_open: ^bool, width, padding, gap, top: f32)
 	if top >= 0 do position.y = top
 
 	ui.push_parent(backdrop)
-	if size.y > 0 {
-		shadow := ui.Style {
-			width         = ui.points(size.x),
-			height        = ui.points(size.y),
-			corner_radius = shape.radius_box + 2,
-			background    = colors.shadow,
-			softness      = 40,
-			position      = position + {0, 12},
-			flags         = {.Floating},
-		}
-		ui.box("shadow", shadow)
-	}
 	panel_look := ui.Style {
 		width         = ui.points(width),
 		height        = ui.fit_children(),
@@ -146,6 +134,7 @@ _begin_dialog :: proc(id: string, is_open: ^bool, width, padding, gap, top: f32)
 		padding       = padding,
 		corner_radius = shape.radius_box,
 		background    = colors.popover,
+		shadow        = shadows.dialog,
 		border_width  = shape.border,
 		border_color  = colors.line,
 		position      = position,

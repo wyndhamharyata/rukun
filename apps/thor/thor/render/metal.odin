@@ -11,6 +11,8 @@ Kind :: enum u32 {
 	Solid = 0,
 	Glyph = 1,
 	Image = 2,
+	// A Gaussian blur of the rounded rect, as wide as softness.
+	Shadow = 3,
 }
 
 // Must match Instance in shaders.metal.
@@ -20,10 +22,13 @@ Instance :: struct {
 	color:         [4]f32,
 	border_color:  [4]f32,
 	clip:          [4]f32,
-	corner_radius: f32,
+	// Top left, top right, bottom right, bottom left.
+	corner_radius: [4]f32,
 	border_width:  f32,
 	softness:      f32,
 	kind:          Kind,
+	// Radians: 0 runs down and π/2 runs right. Zero keeps gradient_kind's direction.
+	gradient_angle: f32,
 	end_color:     [4]f32,
 	gradient:      [2]f32,
 	// Spins a Solid rect about its center, in radians, clockwise on screen.
@@ -43,7 +48,7 @@ Gradient_Flag :: enum u32 {
 	Linear,
 }
 
-#assert(size_of(Instance) == 144)
+#assert(size_of(Instance) == 160)
 
 _Batch :: struct {
 	texture:     ^MTL.Texture,
@@ -256,7 +261,7 @@ push :: proc(instance: Instance, texture: ^MTL.Texture = nil) {
 }
 
 // Erases a rounded rect of the frame so far, in pixels.
-push_clear :: proc(rect: [4]f32, corner_radius: f32, clip: [4]f32) {
+push_clear :: proc(rect: [4]f32, corner_radius: [4]f32, clip: [4]f32) {
 	if len(_state.instances) >= _MAX_INSTANCE_COUNT do return
 
 	append(&_state.batches, _Batch{_state.white_texture, len(_state.instances), 1, true})

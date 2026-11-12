@@ -9,7 +9,7 @@ build_note_page :: proc(note: ^Note) {
 	if ui.col(note.id, {width = ui.fill(), height = ui.fill(), padding = {24, 40, 24, 24}, flags = {.Scroll, .Clip}}) {
 		if ui.col("content", {width = ui.fill(), max_size = {640, 0}}) {
 			kit.text(note.title, font_size = 28, weight = .Bold)
-			gap(16)
+			ui.space(16)
 
 			if ui.col("body", {width = ui.fill(), gap = 12}) {
 				for paragraph in note.body do kit.text(paragraph, is_wrapped = true)
@@ -46,9 +46,9 @@ build_note_page :: proc(note: ^Note) {
 }
 
 build_section_title :: proc(title: string) {
-	gap(24)
+	ui.space(24)
 	kit.text(title, font_size = 15, weight = .Semibold)
-	gap(8)
+	ui.space(8)
 }
 
 build_note_task :: proc(task: ^Task) {

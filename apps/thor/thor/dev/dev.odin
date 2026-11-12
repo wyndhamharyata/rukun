@@ -107,9 +107,16 @@ begin_frame :: proc(start: time.Tick) {
 	if is_bench do append(&frame_starts, start)
 }
 
-// Call it each frame for THOR_BENCH. Time sets the place so slow frames keep the speed.
-bench_scroll :: proc(box: ^ui.Box) {
-	if !is_bench || box == nil || _first_frame_end == {} do return
+// For THOR_BENCH, scrolls the scroll area with the most to scroll. Time sets the place, so slow frames keep the speed.
+_bench_scroll :: proc() {
+	if !is_bench || _first_frame_end == {} do return
+
+	box: ^ui.Box
+	for _, candidate in ui._state.boxes {
+		is_column := .Scroll in candidate.style.flags && candidate.style.axis == .Y
+		if is_column && (box == nil || candidate.content_size.y - candidate.size.y > box.content_size.y - box.size.y) do box = candidate
+	}
+	if box == nil do return
 
 	max_scroll := box.content_size.y - box.size.y
 	if max_scroll <= 0 do return
