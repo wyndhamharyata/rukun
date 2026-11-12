@@ -83,6 +83,15 @@ In all, 126 lines added and 111 removed since iteration 2. Each update also copi
 | 2 | `headless.find` matches an id or a label, not a role. So two elements with the same words are ambiguous: a table's column title and its resize edge both read "Owner" until the edge took `width_label`. |
 | 3 | A test that looks for a line of text in the tree breaks when the row takes that text as its label, as the new-task test did. |
 
+### Fixed after this iteration (thor `b1ad322`, 12 November 2026)
+
+- Iteration 2's 4: `ui.space(points)` is an empty box along the parent's axis. Rukun's `gap`
+  helper is gone.
+- Iteration 2's 8: `THOR_BENCH` scrolls the scroll area with the most to scroll, so no page
+  calls the bench.
+- 1: thor warns once about a control that VoiceOver would read as its id. It found kit's
+  calendar days and color picker, and the gallery's file tree.
+
 ## What worked
 
 - Answering questions on a page with live figures before building. Where a build differed
